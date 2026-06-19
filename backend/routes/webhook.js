@@ -9,4 +9,11 @@ router.post(
   webhookController.handleClerkWebhook
 );
 
+// We need raw body parsing for Razorpay webhooks verification
+router.post(
+  "/razorpay",
+  express.raw({ type: "application/json" }),
+  webhookController.handleRazorpayWebhook
+);
+
 module.exports = router;

@@ -1,5 +1,8 @@
 const { Webhook } = require("svix");
 const User = require("../models/User");
+const Order = require("../models/Order");
+const Product = require("../models/Product");
+const crypto = require("crypto");
 
 exports.handleClerkWebhook = async (req, res) => {
   const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
@@ -76,3 +79,93 @@ exports.handleClerkWebhook = async (req, res) => {
     res.status(500).json({ error: "Internal database sync error" });
   }
 };
+
+// Handle Razorpay Payment Webhooks (asynchronous confirmation)
+exports.handleRazorpayWebhook = async (req, res) => {
+  const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+
+  if (!webhookSecret) {
+    console.error("❌ RAZORPAY_WEBHOOK_SECRET is not defined in environment variables");
+    return res.status(500).json({ error: "Webhook secret is not configured" });
+  }
+
+  const signature = req.headers["x-razorpay-signature"];
+  if (!signature) {
+    return res.status(400).json({ error: "Missing x-razorpay-signature header" });
+  }
+
+  // Get raw body as string/buffer
+  const payload = req.body.toString();
+
+  // Verify signature
+  const hmac = crypto.createHmac("sha256", webhookSecret);
+  hmac.update(payload);
+  const calculatedSignature = hmac.digest("hex");
+
+  if (calculatedSignature !== signature) {
+    console.error("❌ Razorpay webhook signature verification failed");
+    return res.status(400).json({ error: "Invalid signature" });
+  }
+
+  try {
+    const event = JSON.parse(payload);
+    console.log(`📡 Razorpay Webhook received event: ${event.event}`);
+
+    // Update order status if payment was captured or order paid
+    if (event.event === "order.paid" || event.event === "payment.captured") {
+      const paymentEntity = event.payload.payment.entity;
+      const razorpayOrderId = paymentEntity.order_id;
+      const razorpayPaymentId = paymentEntity.id;
+
+      if (razorpayOrderId) {
+        const order = await Order.findOne({ razorpayOrderId });
+        if (order && order.status !== "paid") {
+          order.status = "paid";
+          order.razorpayPaymentId = razorpayPaymentId;
+          await order.save();
+
+          // Decrement stock levels
+          for (const item of order.items) {
+            await Product.findOneAndUpdate(
+              { sku: item.sku },
+              { $inc: { stock: -item.quantity } }
+            );
+            console.log(`📉 Webhook: Decrement stock for SKU: ${item.sku} by ${item.quantity}`);
+          }
+          console.log(`✅ Webhook: Order for Razorpay ID ${razorpayOrderId} marked as paid successfully`);
+        }
+
+        // Upsert payment details on Webhook
+        const paymentUpdate = {
+          razorpayPaymentId,
+          status: "captured",
+          method: paymentEntity.method,
+          email: paymentEntity.email,
+          contact: paymentEntity.contact,
+        };
+        if (paymentEntity.method === "card" && paymentEntity.card) {
+          paymentUpdate.cardLast4 = paymentEntity.card.last4;
+        } else if (paymentEntity.method === "upi") {
+          paymentUpdate.vpa = paymentEntity.vpa;
+        } else if (paymentEntity.method === "netbanking") {
+          paymentUpdate.bank = paymentEntity.bank;
+        } else if (paymentEntity.method === "wallet") {
+          paymentUpdate.wallet = paymentEntity.wallet;
+        }
+
+        const Payment = require("../models/Payment");
+        await Payment.findOneAndUpdate(
+          { razorpayOrderId },
+          { $set: paymentUpdate },
+          { upsert: true }
+        );
+      }
+    }
+
+    res.status(200).json({ success: true, message: "Webhook processed" });
+  } catch (error) {
+    console.error("❌ Razorpay webhook processing error:", error);
+    res.status(500).json({ error: "Internal processing error" });
+  }
+};
+

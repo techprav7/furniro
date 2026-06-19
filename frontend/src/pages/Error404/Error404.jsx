@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import furnioLogo from "../../assets/Furnio-logo.png";
+import furniroLogo from "../../assets/Furniro-logo.png";
 import decorImg from "../../assets/image8.png";
 
 const Error404 = () => {
@@ -8,8 +8,8 @@ const Error404 = () => {
     <div className="w-full min-h-[80vh] bg-[#faf3ea] flex flex-col justify-center items-center text-center p-4 overflow-hidden">
       {/* Logo bounce in */}
       <motion.img
-        src={furnioLogo}
-        alt="Furnio Logo"
+        src={furniroLogo}
+        alt="Furniro Logo"
         className="h-[60px] w-[60px] mb-4"
         initial={{ y: -50, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}

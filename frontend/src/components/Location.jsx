@@ -1,4 +1,4 @@
-import furnioLogo from "../assets/Furnio-logo.png";
+import furniroLogo from "../assets/Furniro-logo.png";
 import cartBg from "../assets/cartimg.jpg";
 
 const Location = ({ title = "Page", breadcrumb = "" }) => {
@@ -12,7 +12,7 @@ const Location = ({ title = "Page", breadcrumb = "" }) => {
 
       {/* Centered content */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center text-black">
-        <img src={furnioLogo} className="h-[50px] w-[50px]" alt="Furnio Logo" />
+        <img src={furniroLogo} className="h-[50px] w-[50px]" alt="Furniro Logo" />
         <h1 className="text-2xl font-semibold">{title}</h1>
         <h6 className="text-sm">
           <span className="font-bold">Home &gt;</span> {breadcrumb || title}

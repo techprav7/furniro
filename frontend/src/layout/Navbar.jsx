@@ -2,17 +2,17 @@ import { useState, useRef, useEffect } from "react";
 import Container from "react-bootstrap/Container";
 import Nav from "react-bootstrap/Nav";
 import Navbar from "react-bootstrap/Navbar";
-import Person2OutlinedIcon from "@mui/icons-material/Person2Outlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import FavoriteBorderOutlinedIcon from "@mui/icons-material/FavoriteBorderOutlined";
 import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
-import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import "../css/Navbar.css";
 import logoImg from "../assets/Logo.png";
 import { useCartStore, useWishlistStore } from "../store/store";
+import { formatPrice } from "../data/productData";
 import { SignedIn, SignedOut, UserButton, useAuth } from "@clerk/clerk-react";
+import { ShoppingBag, CreditCard, MapPin } from "lucide-react";
 
 function NavbarComponent() {
   const navigate = useNavigate();
@@ -32,6 +32,7 @@ function NavbarComponent() {
 
   // Search
   const [showSearchPopup, setShowSearchPopup] = useState(false);
+  const [searchVal, setSearchVal] = useState("");
   const searchRef = useRef();
   const toggleSearchPopup = () => setShowSearchPopup((prev) => !prev);
 
@@ -53,8 +54,12 @@ function NavbarComponent() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showCartPopup, showWishlistPopup, showSearchPopup]);
 
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat("en-IN").format(price / 100);
+  const handleSearchSubmit = (e) => {
+    if (e.key === "Enter" && searchVal.trim()) {
+      navigate(`/shop?search=${encodeURIComponent(searchVal.trim())}`);
+      setSearchVal("");
+      setShowSearchPopup(false);
+    }
   };
 
   return (
@@ -64,7 +69,7 @@ function NavbarComponent() {
           <Navbar.Brand as={Link} to="/" className="d-flex align-items-center">
             <img
               src={logoImg}
-              alt="Furnio Logo"
+              alt="Furniro Logo"
               style={{ height: "32px", width: "auto" }}
             />
           </Navbar.Brand>
@@ -92,10 +97,6 @@ function NavbarComponent() {
 
             <div className="d-flex flex-column flex-lg-row align-items-center justify-content-end flex-grow-1 order-3 gap-3 position-relative">
               <div className="d-flex gap-3 align-items-center">
-                {/* 👤 Profile */}
-                <Link to={isSignedIn ? "/profile" : "/login"} className="text-dark nav-icon-hover">
-                  <Person2OutlinedIcon fontSize="medium" />
-                </Link>
 
                 {/* 🔍 Search */}
                 <span
@@ -119,12 +120,16 @@ function NavbarComponent() {
                           type="text"
                           placeholder="Search for products..."
                           className="form-control"
+                          value={searchVal}
+                          onChange={(e) => setSearchVal(e.target.value)}
+                          onKeyDown={handleSearchSubmit}
                           style={{
                             borderColor: "#B88E2F",
                             outline: "none",
                             boxShadow: "0 0 0 2px rgba(184, 142, 47, 0.3)",
                           }}
                           autoFocus
+                          onClick={(e) => e.stopPropagation()}
                         />
                       </motion.div>
                     )}
@@ -167,14 +172,14 @@ function NavbarComponent() {
                                 >
                                   <div className="flex-grow-1">
                                     <p className="mb-0 fw-semibold">{item.name}</p>
-                                    <small className="text-muted">₹{formatPrice(item.price)}</small>
+                                    <small className="text-muted">{formatPrice(item.price)}</small>
                                   </div>
                                 </li>
                               ))}
                             </ul>
                             <hr />
                             <div className="flex gap-4">
-                              <Link to="/wishlist" className="btn btn-sm btn-dark">View All</Link>
+                              <Link to="/wishlist" className="btn btn-sm btn-dark" style={{ backgroundColor: "#B88E2F", borderColor: "#B88E2F" }}>View All</Link>
                             </div>
                           </>
                         ) : (
@@ -212,7 +217,7 @@ function NavbarComponent() {
                         <hr />
                         {cartItems.length > 0 ? (
                           <>
-                            <ul className="list-unstyled mb-2">
+                            <ul className="list-unstyled mb-2" style={{ maxHeight: "200px", overflowY: "auto" }}>
                               {cartItems.map((item) => (
                                 <li
                                   key={item._id}
@@ -222,7 +227,7 @@ function NavbarComponent() {
                                   <div className="flex-grow-1">
                                     <p className="mb-0 fw-semibold">{item.name}</p>
                                     <small className="text-muted">
-                                      {item.quantity} × ₹{formatPrice(item.price)}
+                                      {item.quantity} × {formatPrice(item.price)}
                                     </small>
                                   </div>
                                 </li>
@@ -230,13 +235,13 @@ function NavbarComponent() {
                             </ul>
                             <div className="flex gap-4 mt-8">
                               <p>Subtotal</p>
-                              <p className="text-[#B88E2F]">₹{formatPrice(getTotal())}</p>
+                              <p className="text-[#B88E2F]">{formatPrice(getTotal())}</p>
                             </div>
                             <hr />
                             <div className="flex gap-4">
-                              <Link to="/cart" className="btn btn-sm btn-dark">Cart</Link>
-                              <Link to="/checkout" className="btn btn-sm btn-dark">Checkout</Link>
-                              <Link to="/comparison" className="btn btn-sm btn-dark">Comparison</Link>
+                              <Link to="/cart" className="btn btn-sm btn-dark" style={{ backgroundColor: "#B88E2F", borderColor: "#B88E2F" }}>Cart</Link>
+                              <Link to="/checkout" className="btn btn-sm btn-dark" style={{ backgroundColor: "#B88E2F", borderColor: "#B88E2F" }}>Checkout</Link>
+                              <Link to="/comparison" className="btn btn-sm btn-dark" style={{ backgroundColor: "#B88E2F", borderColor: "#B88E2F" }}>Comparison</Link>
                             </div>
                           </>
                         ) : (
@@ -271,7 +276,25 @@ function NavbarComponent() {
                   </Link>
                 </SignedOut>
                 <SignedIn>
-                  <UserButton afterSignOutUrl="/login" />
+                  <UserButton afterSignOutUrl="/login">
+                    <UserButton.MenuItems>
+                      <UserButton.Link
+                        label="My Orders"
+                        href="/orders"
+                        labelIcon={<ShoppingBag className="w-4 h-4 text-gray-500" />}
+                      />
+                      <UserButton.Link
+                        label="Address & Shipping"
+                        href="/profile?tab=address"
+                        labelIcon={<MapPin className="w-4 h-4 text-gray-500" />}
+                      />
+                      <UserButton.Link
+                        label="Payments"
+                        href="/profile?tab=payments"
+                        labelIcon={<CreditCard className="w-4 h-4 text-gray-500" />}
+                      />
+                    </UserButton.MenuItems>
+                  </UserButton>
                 </SignedIn>
               </div>
             </div>
@@ -283,3 +306,4 @@ function NavbarComponent() {
 }
 
 export default NavbarComponent;
+

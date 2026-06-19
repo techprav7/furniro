@@ -1,5 +1,61 @@
 const mongoose = require("mongoose");
 
+const reviewSchema = new mongoose.Schema({
+  clerkUserId: {
+    type: String,
+    required: true,
+  },
+  userName: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  rating: {
+    type: Number,
+    required: true,
+    min: 1,
+    max: 5,
+  },
+  comment: {
+    type: String,
+    required: true,
+    trim: true,
+    maxlength: 1000,
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+});
+
+const sizeSchema = new mongoose.Schema({
+  label: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  available: {
+    type: Boolean,
+    default: true,
+  },
+}, { _id: false });
+
+const colorSchema = new mongoose.Schema({
+  hex: {
+    type: String,
+    required: true,
+  },
+  name: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  available: {
+    type: Boolean,
+    default: true,
+  },
+}, { _id: false });
+
 const productSchema = new mongoose.Schema(
   {
     name: {
@@ -43,6 +99,9 @@ const productSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    sizes: [sizeSchema],
+    colors: [colorSchema],
+    reviews: [reviewSchema],
     rating: {
       type: Number,
       default: 0,
@@ -72,6 +131,18 @@ const productSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+// Recalculate rating and reviewCount from reviews array
+productSchema.methods.recalculateRating = function () {
+  if (this.reviews.length === 0) {
+    this.rating = 0;
+    this.reviewCount = 0;
+  } else {
+    const sum = this.reviews.reduce((acc, r) => acc + r.rating, 0);
+    this.rating = Math.round((sum / this.reviews.length) * 10) / 10;
+    this.reviewCount = this.reviews.length;
+  }
+};
 
 // Index for search and filtering
 productSchema.index({ name: "text", description: "text" });

@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useUser } from "@clerk/clerk-react";
 import api from "../../../utils/api";
 import vectorImg from "../../../assets/Vector.png";
 import phoneImg from "../../../assets/bxs_phone.png";
 import clockImg from "../../../assets/bi_clock-fill.png";
 
 const Cont = () => {
+  const { user } = useUser();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -14,6 +16,16 @@ const Cont = () => {
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+
+  useEffect(() => {
+    if (user) {
+      setFormData((prev) => ({
+        ...prev,
+        name: prev.name || `${user.firstName || ""} ${user.lastName || ""}`.trim(),
+        email: prev.email || user.primaryEmailAddress?.emailAddress || "",
+      }));
+    }
+  }, [user]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });

@@ -1,7 +1,7 @@
 {
-  "name": "furnio-backend",
+  "name": "furniro-backend",
   "version": "1.0.0",
-  "description": "Furnio backend API server",
+  "description": "Furniro backend API server",
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
@@ -25,6 +25,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.16.0",
     "morgan": "^1.10.0",
+    "razorpay": "^2.9.6",
     "svix": "^1.95.2"
   }
 }

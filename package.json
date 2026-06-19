@@ -1,7 +1,7 @@
 {
-  "name": "furnio-project",
+  "name": "furniro-project",
   "version": "1.0.0",
-  "description": "Furnio — Modern furniture e-commerce platform",
+  "description": "Furniro — Modern furniture e-commerce platform",
   "private": true,
   "scripts": {
     "start": "concurrently --kill-others-on-fail \"npm run server\" \"npm run client\"",

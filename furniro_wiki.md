@@ -1,6 +1,6 @@
-# 📚 Furnio Wiki — Complete Project Documentation
+# 📚 Furniro Wiki — Complete Project Documentation
 
-> **Furnio** is a modern furniture e-commerce platform. This wiki covers everything — architecture, features, components, APIs, deployment, and security.
+> **Furniro** is a modern furniture e-commerce platform. This wiki covers everything — architecture, features, components, APIs, deployment, and security.
 
 ---
 

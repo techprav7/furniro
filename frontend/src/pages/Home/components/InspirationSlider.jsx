@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Rectangle24 from "../../../assets/Rectangle24.png";
 import Rectangle25 from "../../../assets/Rectangle25.png";
 import Rectangle45 from "../../../assets/Rectangle45.png";
@@ -8,6 +9,17 @@ const images = [Rectangle24, Rectangle25, Rectangle45];
 
 function InspirationSlider() {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+  const navigate = useNavigate();
+
+  // Auto-play carousel
+  useEffect(() => {
+    if (isHovered) return;
+    const timer = setInterval(() => {
+      setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [currentIndex, isHovered]);
 
   const nextSlide = () => {
     setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
@@ -17,6 +29,8 @@ function InspirationSlider() {
     <div
       className="flex flex-col lg:flex-row items-center px-6 py-12 lg:p-10 gap-8"
       style={{ backgroundColor: "#FCF8F3" }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       {/* Left Text Section */}
       <div className="flex-1 text-center lg:text-left lg:pr-10 lg:ml-10">
@@ -28,10 +42,14 @@ function InspirationSlider() {
           Our designer already made a lot of beautiful <br className="hidden md:block" />
           prototype of rooms that inspire you
         </p>
-        <button className="bg-[#B88E2F] text-white px-6 py-2 font-semibold hover:bg-[#a5761f] transition">
+        <button
+          onClick={() => navigate("/shop")}
+          className="bg-[#B88E2F] text-white px-6 py-2 font-semibold hover:bg-[#a5761f] transition duration-300"
+        >
           Explore More
         </button>
       </div>
+
 
       {/* Carousel Section */}
       <div className="flex-1 relative w-full flex flex-col items-center">
