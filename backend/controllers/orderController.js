@@ -68,7 +68,7 @@ exports.createOrder = async (req, res) => {
 
       orderItems.push({
         productId: product._id,
-        sku: product.sku,
+        sku: product.sku || `SKU-${product._id}`,
         name: product.name,
         price: product.price,
         quantity: item.quantity,
@@ -240,6 +240,10 @@ exports.verifyOrder = async (req, res) => {
     }
     await order.save();
 
+    // Trigger order confirmation email asynchronously
+    const { sendOrderConfirmationEmail } = require("../utils/emailService");
+    sendOrderConfirmationEmail(order).catch(err => console.error("❌ Failed to send order confirmation email:", err));
+
     // Update payment record to captured
     paymentUpdate.status = "captured";
     await Payment.findOneAndUpdate(
@@ -249,11 +253,11 @@ exports.verifyOrder = async (req, res) => {
 
     // Decrement stock levels for all products
     for (const item of order.items) {
-      await Product.findOneAndUpdate(
-        { sku: item.sku },
+      await Product.findByIdAndUpdate(
+        item.productId,
         { $inc: { stock: -item.quantity } }
       );
-      console.log(`📉 Decrement stock for SKU: ${item.sku} by ${item.quantity}`);
+      console.log(`📉 Decrement stock for Product ID: ${item.productId} by ${item.quantity}`);
     }
 
     res.status(200).json({
@@ -386,8 +390,8 @@ exports.cancelOrder = async (req, res) => {
 
     // Restore stock for cancelled orders
     for (const item of order.items) {
-      await Product.findOneAndUpdate(
-        { sku: item.sku },
+      await Product.findByIdAndUpdate(
+        item.productId,
         { $inc: { stock: item.quantity } }
       );
     }

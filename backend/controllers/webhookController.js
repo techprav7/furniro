@@ -124,13 +124,17 @@ exports.handleRazorpayWebhook = async (req, res) => {
           order.razorpayPaymentId = razorpayPaymentId;
           await order.save();
 
+          // Trigger order confirmation email asynchronously
+          const { sendOrderConfirmationEmail } = require("../utils/emailService");
+          sendOrderConfirmationEmail(order).catch(err => console.error("❌ Webhook: Failed to send order confirmation email:", err));
+
           // Decrement stock levels
           for (const item of order.items) {
-            await Product.findOneAndUpdate(
-              { sku: item.sku },
+            await Product.findByIdAndUpdate(
+              item.productId,
               { $inc: { stock: -item.quantity } }
             );
-            console.log(`📉 Webhook: Decrement stock for SKU: ${item.sku} by ${item.quantity}`);
+            console.log(`📉 Webhook: Decrement stock for Product ID: ${item.productId} by ${item.quantity}`);
           }
           console.log(`✅ Webhook: Order for Razorpay ID ${razorpayOrderId} marked as paid successfully`);
         }

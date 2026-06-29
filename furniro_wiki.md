@@ -24,7 +24,7 @@
 
 ## 🏗️ Project Overview
 
-Furnio is a full-stack furniture e-commerce web application. Users must authenticate before accessing the main app. Once logged in, they can browse products, add items to cart/wishlist, manage their profile, subscribe to newsletters, and submit contact inquiries.
+Furnio is a full-stack furniture e-commerce web application. Users must authenticate before accessing the main app. Once logged in, they can browse products, add items to cart/wishlist, manage their profile, and submit contact inquiries.
 
 ### Key Design Decisions
 - **Auth-first flow** — The app starts at the login page. All main pages require authentication.
@@ -60,8 +60,7 @@ Furnio is a full-stack furniture e-commerce web application. Users must authenti
                         ▼
 ┌─────────────────────────────────────────────────┐
 │               MongoDB Atlas (Cloud)              │
-│  Collections: users, products, contacts,         │
-│               newsletters                        │
+│  Collections: users, products, contacts          │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -80,7 +79,7 @@ The app uses a **Layout wrapper pattern** with React Router's `<Outlet>`:
 │           (via <Outlet />)           │
 │                                      │
 ├──────────────────────────────────────┤
-│              Footer                   │  ← Newsletter, links, copyright
+│              Footer                   │  ← Links, copyright
 └──────────────────────────────────────┘
 ```
 
@@ -190,7 +189,7 @@ The app uses a **Layout wrapper pattern** with React Router's `<Outlet>`:
 |-----------|------|---------|
 | `Layout` | `layout/Layout.jsx` | Page wrapper with Navbar + Footer + animations |
 | `Navbar` | `layout/Navbar.jsx` | Navigation, search, cart/wishlist popups, auth buttons |
-| `Footer` | `layout/Footer.jsx` | Links, newsletter subscription, copyright |
+| `Footer` | `layout/Footer.jsx` | Links, copyright |
 
 ---
 
@@ -274,7 +273,6 @@ Using **Zustand** — a minimal state management library.
 | Method | Endpoint | Body | Response |
 |--------|----------|------|----------|
 | `POST` | `/api/contact` | `{ name, email, subject?, message }` | `{ message }` |
-| `POST` | `/api/newsletter` | `{ email }` | `{ message }` |
 | `GET` | `/api/health` | — | `{ status: "ok", timestamp }` |
 
 ---
@@ -320,14 +318,6 @@ Using **Zustand** — a minimal state management library.
   email:     String (required, validated)
   subject:   String (default: "General Inquiry")
   message:   String (required, max 2000 chars)
-  createdAt: Date (auto)
-}
-```
-
-### Newsletter
-```javascript
-{
-  email:     String (required, unique, validated)
   createdAt: Date (auto)
 }
 ```

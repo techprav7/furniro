@@ -446,10 +446,11 @@ const seedDB = async () => {
       console.log("☁️  Uploading seed images to Cloudinary...");
       for (const p of products) {
         if (p.image && !p.image.startsWith("http")) {
-          const localImgPath = path.join(__dirname, "../frontend/public", p.image);
+          const fileName = path.basename(p.image);
+          const localImgPath = path.join(__dirname, "../frontend/src/assets", fileName);
           if (fs.existsSync(localImgPath)) {
             try {
-              const baseName = path.basename(p.image, path.extname(p.image));
+              const baseName = path.basename(fileName, path.extname(fileName));
               const uploadRes = await cloudinary.uploader.upload(localImgPath, {
                 folder: "furnio/products",
                 public_id: `${p.name.toLowerCase().replace(/[^a-z0-9]/g, "_")}_${baseName}`,
@@ -471,10 +472,11 @@ const seedDB = async () => {
           for (let i = 0; i < p.images.length; i++) {
             const imgPath = p.images[i];
             if (imgPath && !imgPath.startsWith("http")) {
-              const localImgPath = path.join(__dirname, "../frontend/public", imgPath);
+              const fileName = path.basename(imgPath);
+              const localImgPath = path.join(__dirname, "../frontend/src/assets", fileName);
               if (fs.existsSync(localImgPath)) {
                 try {
-                  const baseName = path.basename(imgPath, path.extname(imgPath));
+                  const baseName = path.basename(fileName, path.extname(fileName));
                   const uploadRes = await cloudinary.uploader.upload(localImgPath, {
                     folder: "furnio/products",
                     public_id: `${p.name.toLowerCase().replace(/[^a-z0-9]/g, "_")}_gallery_${i}_${baseName}`,

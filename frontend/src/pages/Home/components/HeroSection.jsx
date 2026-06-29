@@ -13,7 +13,7 @@ function HeroSection() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const data = await api("/api/products?limit=32");
+        const data = await api("/api/products?limit=32&featured=true");
         setAllProducts(data.products || []);
       } catch (err) {
         console.error("Error fetching home products:", err);

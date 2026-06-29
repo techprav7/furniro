@@ -149,8 +149,9 @@ const productSchema = new mongoose.Schema(
     tags: [String],
     sku: {
       type: String,
+      required: [true, "Product SKU is required"],
       unique: true,
-      sparse: true,
+      trim: true,
     },
   },
   {
