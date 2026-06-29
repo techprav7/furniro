@@ -1,8 +1,23 @@
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const Blog = require("./models/Blog");
+const path = require("path");
+const fs = require("fs");
+const cloudinary = require("cloudinary").v2;
 
 dotenv.config();
+
+if (
+  process.env.CLOUDINARY_CLOUD_NAME &&
+  process.env.CLOUDINARY_API_KEY &&
+  process.env.CLOUDINARY_API_SECRET
+) {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+  });
+}
 
 const blogPosts = [
   {
@@ -59,6 +74,40 @@ const seedBlogs = async () => {
 
     await Blog.deleteMany({});
     console.log("🗑️  Cleared existing blog posts");
+
+    // Check if Cloudinary is configured and upload images
+    const hasCloudinary =
+      process.env.CLOUDINARY_CLOUD_NAME &&
+      process.env.CLOUDINARY_API_KEY &&
+      process.env.CLOUDINARY_API_SECRET;
+
+    if (hasCloudinary) {
+      console.log("☁️  Uploading blog seed images to Cloudinary...");
+      for (const post of blogPosts) {
+        if (post.image && !post.image.startsWith("http")) {
+          const localImgPath = path.join(__dirname, "../frontend/public", post.image);
+          if (fs.existsSync(localImgPath)) {
+            try {
+              const baseName = path.basename(post.image, path.extname(post.image));
+              const uploadRes = await cloudinary.uploader.upload(localImgPath, {
+                folder: "furnio/blogs",
+                public_id: `${post.title.toLowerCase().replace(/[^a-z0-9]/g, "_")}_${baseName}`,
+                overwrite: true,
+                invalidate: true,
+              });
+              post.image = uploadRes.secure_url;
+              console.log(`Uploaded blog "${post.title}" image: ${uploadRes.secure_url}`);
+            } catch (err) {
+              console.error(`Failed to upload image for blog "${post.title}":`, err.message);
+            }
+          } else {
+            console.warn(`Local blog image file not found: ${localImgPath}`);
+          }
+        }
+      }
+    } else {
+      console.log("⚠️  Cloudinary not configured. Seeding blogs with local image paths.");
+    }
 
     await Blog.insertMany(blogPosts);
     console.log(`🌱 Seeded ${blogPosts.length} blog posts`);

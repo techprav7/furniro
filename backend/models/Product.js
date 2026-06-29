@@ -91,9 +91,35 @@ const productSchema = new mongoose.Schema(
     },
     image: {
       type: String,
-      required: true,
+      required: false,
+      set: function (key) {
+        const cloudName = process.env.CLOUDINARY_CLOUD_NAME || "dqtw7ofz2";
+        if (!cloudName || !key) return key;
+        if (key.startsWith("http://") || key.startsWith("https://")) return key;
+        const cleanKey = key.startsWith("/") ? key.substring(1) : key;
+        if (cleanKey.startsWith("images/") || cleanKey.startsWith("src/assets/")) {
+          return key;
+        }
+        return `https://res.cloudinary.com/${cloudName}/image/upload/${cleanKey}`;
+      }
     },
-    images: [String],
+    images: {
+      type: [String],
+      set: function (keys) {
+        if (!keys || !Array.isArray(keys)) return keys;
+        const cloudName = process.env.CLOUDINARY_CLOUD_NAME || "dqtw7ofz2";
+        if (!cloudName) return keys;
+        return keys.map(key => {
+          if (!key) return key;
+          if (key.startsWith("http://") || key.startsWith("https://")) return key;
+          const cleanKey = key.startsWith("/") ? key.substring(1) : key;
+          if (cleanKey.startsWith("images/") || cleanKey.startsWith("src/assets/")) {
+            return key;
+          }
+          return `https://res.cloudinary.com/${cloudName}/image/upload/${cleanKey}`;
+        });
+      }
+    },
     stock: {
       type: Number,
       default: 0,
@@ -148,5 +174,45 @@ productSchema.methods.recalculateRating = function () {
 productSchema.index({ name: "text", description: "text" });
 productSchema.index({ category: 1 });
 productSchema.index({ price: 1 });
+
+// Pre-validate hook to clean up empty arrays and set blank unique fields to undefined
+productSchema.pre("validate", function (next) {
+  // Clean up sizes array
+  if (this.sizes && Array.isArray(this.sizes)) {
+    this.sizes = this.sizes.filter(
+      (item) => item && typeof item.label === "string" && item.label.trim() !== ""
+    );
+  }
+
+  // Clean up colors array
+  if (this.colors && Array.isArray(this.colors)) {
+    this.colors = this.colors.filter(
+      (item) =>
+        item &&
+        typeof item.name === "string" &&
+        item.name.trim() !== "" &&
+        typeof item.hex === "string" &&
+        item.hex.trim() !== ""
+    );
+  }
+
+  // Clean up tags array
+  if (this.tags && Array.isArray(this.tags)) {
+    this.tags = this.tags.filter((t) => typeof t === "string" && t.trim() !== "");
+  }
+
+  // Clean up images array
+  if (this.images && Array.isArray(this.images)) {
+    this.images = this.images.filter((img) => typeof img === "string" && img.trim() !== "");
+  }
+
+  // Handle blank sku to prevent duplicate key errors with sparse unique index
+  if (this.sku === "" || (typeof this.sku === "string" && this.sku.trim() === "")) {
+    this.sku = undefined;
+  }
+
+  next();
+});
+
 
 module.exports = mongoose.model("Product", productSchema);

@@ -19,7 +19,17 @@ const blogSchema = new mongoose.Schema(
     },
     image: {
       type: String,
-      required: [true, "Blog image is required"],
+      required: false,
+      set: function (key) {
+        const cloudName = process.env.CLOUDINARY_CLOUD_NAME || "dqtw7ofz2";
+        if (!cloudName || !key) return key;
+        if (key.startsWith("http://") || key.startsWith("https://")) return key;
+        const cleanKey = key.startsWith("/") ? key.substring(1) : key;
+        if (cleanKey.startsWith("images/") || cleanKey.startsWith("src/assets/")) {
+          return key;
+        }
+        return `https://res.cloudinary.com/${cloudName}/image/upload/${cleanKey}`;
+      }
     },
     category: {
       type: String,
@@ -45,5 +55,7 @@ const blogSchema = new mongoose.Schema(
 blogSchema.index({ title: "text", excerpt: "text", content: "text" });
 blogSchema.index({ category: 1 });
 blogSchema.index({ isPublished: 1, createdAt: -1 });
+
+
 
 module.exports = mongoose.model("Blog", blogSchema);

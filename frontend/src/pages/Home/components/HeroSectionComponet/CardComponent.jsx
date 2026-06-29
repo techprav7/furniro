@@ -94,8 +94,15 @@ function CardComponent({ product, img, title, description, price, oldPrice }) {
         </div>
       )}
 
+      {/* Out of Stock Badge */}
+      {p.stock !== undefined && p.stock <= 0 && (
+        <div className="absolute top-4 left-4 bg-[#E97171] text-white text-[10px] font-bold rounded-full w-10 h-10 flex items-center justify-center z-10 uppercase tracking-wider text-center leading-tight shadow-md">
+          Out of Stock
+        </div>
+      )}
+
       {/* Discount Badge */}
-      {p.discount > 0 && (
+      {p.discount > 0 && !p.isNew && (
         <div className="absolute top-4 right-4 bg-[#E97171] text-white text-xs font-semibold rounded-full w-10 h-10 flex items-center justify-center z-10">
           -{p.discount}%
         </div>
@@ -114,7 +121,9 @@ function CardComponent({ product, img, title, description, price, oldPrice }) {
           <Card.Img 
             variant="top" 
             src={p.image} 
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
+            className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 ${
+              p.stock !== undefined && p.stock <= 0 ? "opacity-60 grayscale-[50%]" : ""
+            }`} 
           />
         </div>
         <div className="cardbody bg-[#F4F5F7] p-4 flex flex-col justify-between min-h-[140px]">

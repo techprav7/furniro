@@ -43,53 +43,72 @@ const Cart_products = () => {
           </div>
 
           <div className="flex flex-col border border-gray-200 rounded-b-lg divide-y divide-gray-200 bg-white shadow-sm">
-            {items.map((item) => (
-              <ul key={item._id} className="flex flex-col md:flex-row mb-0 p-6 w-full justify-center items-center gap-4 md:gap-0">
-                <li className="text-center flex-1 min-w-[100px]">
-                  <img 
-                    onClick={() => navigate(`/product/${item._id}`)}
-                    src={item.image} 
-                    alt={item.name}
-                    className="h-[100px] w-auto object-contain rounded-md cursor-pointer hover:opacity-80 transition duration-300 mx-auto" 
-                  />
-                </li>
-                <li className="text-center flex-1 min-w-[100px] font-semibold text-gray-800">
-                  {item.name}
-                </li>
-                <li className="text-center flex-1 min-w-[100px] text-gray-600">
-                  {formatPrice(item.price)}
-                </li>
-                <li className="text-center flex-1 min-w-[100px] flex justify-center items-center">
-                  <div className="flex items-center gap-2 border border-gray-300 rounded px-2 py-1 bg-white">
+            {items.map((item) => {
+              const isOutOfStock = item.stock !== undefined && item.stock <= 0;
+              const hasInsufficientStock = item.stock !== undefined && item.quantity > item.stock;
+              return (
+                <ul key={item._id} className={`flex flex-col md:flex-row mb-0 p-6 w-full justify-center items-center gap-4 md:gap-0 ${
+                  isOutOfStock ? "bg-red-50/30" : ""
+                }`}>
+                  <li className="text-center flex-1 min-w-[100px] relative">
+                    <img 
+                      onClick={() => navigate(`/product/${item._id}`)}
+                      src={item.image} 
+                      alt={item.name}
+                      className={`h-[100px] w-auto object-contain rounded-md cursor-pointer hover:opacity-80 transition duration-300 mx-auto ${
+                        isOutOfStock ? "opacity-50 grayscale-[50%]" : ""
+                      }`} 
+                    />
+                    {isOutOfStock && (
+                      <span className="absolute top-0 left-1/2 transform -translate-x-1/2 bg-red-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded uppercase shadow-sm">
+                        Out of Stock
+                      </span>
+                    )}
+                  </li>
+                  <li className="text-center flex-1 min-w-[100px] font-semibold text-gray-800 flex flex-col items-center">
+                    <span>{item.name}</span>
+                    {hasInsufficientStock && !isOutOfStock && (
+                      <span className="text-[10px] text-orange-600 font-bold mt-1">
+                        Only {item.stock} available!
+                      </span>
+                    )}
+                  </li>
+                  <li className="text-center flex-1 min-w-[100px] text-gray-600">
+                    {formatPrice(item.price)}
+                  </li>
+                  <li className="text-center flex-1 min-w-[100px] flex justify-center items-center">
+                    <div className="flex items-center gap-2 border border-gray-300 rounded px-2 py-1 bg-white">
+                      <button 
+                        onClick={() => updateQuantity(item._id, item.quantity - 1)}
+                        className="font-bold text-gray-600 hover:text-black px-1"
+                      >
+                        -
+                      </button>
+                      <span className="w-6 text-center font-bold text-gray-800">{isOutOfStock ? 0 : item.quantity}</span>
+                      <button 
+                        onClick={() => updateQuantity(item._id, item.quantity + 1)}
+                        disabled={isOutOfStock || item.quantity >= (item.stock || 999)}
+                        className="font-bold text-gray-600 hover:text-black px-1 disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </li>
+                  <li className="text-center flex-1 min-w-[100px] font-bold text-gray-800">
+                    {formatPrice(item.price * (isOutOfStock ? 0 : item.quantity))}
+                  </li>
+                  <li className="flex-1 text-center min-w-[100px]">
                     <button 
-                      onClick={() => updateQuantity(item._id, item.quantity - 1)}
-                      className="font-bold text-gray-600 hover:text-black px-1"
+                      onClick={() => removeFromCart(item._id)}
+                      className="text-red-500 hover:text-red-700 transition p-2 hover:bg-red-50 rounded-full"
+                      aria-label="Remove item"
                     >
-                      -
+                      <Trash2 className="w-5 h-5 mx-auto" />
                     </button>
-                    <span className="w-6 text-center font-bold text-gray-800">{item.quantity}</span>
-                    <button 
-                      onClick={() => updateQuantity(item._id, item.quantity + 1)}
-                      className="font-bold text-gray-600 hover:text-black px-1"
-                    >
-                      +
-                    </button>
-                  </div>
-                </li>
-                <li className="text-center flex-1 min-w-[100px] font-bold text-gray-800">
-                  {formatPrice(item.price * item.quantity)}
-                </li>
-                <li className="flex-1 text-center min-w-[100px]">
-                  <button 
-                    onClick={() => removeFromCart(item._id)}
-                    className="text-red-500 hover:text-red-700 transition p-2 hover:bg-red-50 rounded-full"
-                    aria-label="Remove item"
-                  >
-                    <Trash2 className="w-5 h-5 mx-auto" />
-                  </button>
-                </li>
-              </ul>
-            ))}
+                  </li>
+                </ul>
+              );
+            })}
           </div>
         </div>
 
@@ -99,17 +118,42 @@ const Cart_products = () => {
           
           <div className="flex w-full justify-between mb-4 border-b border-gray-200 pb-3 text-sm sm:text-base">
             <span className="font-semibold text-gray-600">Subtotal</span>
-            <span className="text-gray-500 font-medium">{formatPrice(getTotal())}</span>
+            <span className="text-gray-500 font-medium">
+              {formatPrice(
+                items.reduce((total, item) => {
+                  const isOutOfStock = item.stock !== undefined && item.stock <= 0;
+                  return total + (isOutOfStock ? 0 : item.price * item.quantity);
+                }, 0)
+              )}
+            </span>
           </div>
           
           <div className="flex w-full justify-between mb-8 pb-3 text-base sm:text-lg">
             <span className="font-bold text-gray-800">Total</span>
-            <span className="text-[#B88E2F] font-bold">{formatPrice(getTotal())}</span>
+            <span className="text-[#B88E2F] font-bold">
+              {formatPrice(
+                items.reduce((total, item) => {
+                  const isOutOfStock = item.stock !== undefined && item.stock <= 0;
+                  return total + (isOutOfStock ? 0 : item.price * item.quantity);
+                }, 0)
+              )}
+            </span>
           </div>
           
+          {items.some(item => item.stock !== undefined && (item.stock <= 0 || item.quantity > item.stock)) && (
+            <p className="text-xs text-red-600 font-semibold mb-4 text-center leading-normal">
+              ⚠️ Please remove out-of-stock items or reduce quantities to match available stock.
+            </p>
+          )}
+
           <button 
             onClick={() => navigate('/checkout')}
-            className="w-full py-3 bg-[#B88E2F] hover:bg-[#a5761f] text-white font-bold rounded shadow transition duration-300"
+            disabled={items.some(item => item.stock !== undefined && (item.stock <= 0 || item.quantity > item.stock))}
+            className={`w-full py-3 text-white font-bold rounded shadow transition duration-300 ${
+              items.some(item => item.stock !== undefined && (item.stock <= 0 || item.quantity > item.stock))
+                ? "bg-gray-400 cursor-not-allowed opacity-65"
+                : "bg-[#B88E2F] hover:bg-[#a5761f]"
+            }`}
           >
             Check Out
           </button>

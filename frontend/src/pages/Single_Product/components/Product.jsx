@@ -10,7 +10,8 @@ const ProductDetail = ({ product }) => {
   const { addToComparison, isInComparison } = useComparisonStore();
   const { addToWishlist, isInWishlist, removeFromWishlist } = useWishlistStore();
 
-  const [quantity, setQuantity] = useState(1);
+  const isOutOfStock = product.stock !== undefined && product.stock <= 0;
+  const [quantity, setQuantity] = useState(isOutOfStock ? 0 : 1);
   const [selectedImage, setSelectedImage] = useState(product.image);
   const [selectedSize, setSelectedSize] = useState(
     () => (product.sizes || []).find(s => s.available)?.label || null
@@ -32,7 +33,12 @@ const ProductDetail = ({ product }) => {
   };
 
   const handleQuantityChange = (val) => {
-    setQuantity(Math.max(1, quantity + val));
+    const maxStock = product.stock !== undefined ? product.stock : 999;
+    if (maxStock <= 0) {
+      setQuantity(0);
+      return;
+    }
+    setQuantity(Math.min(maxStock, Math.max(1, quantity + val)));
   };
 
   const handleAddToCart = () => {
@@ -152,10 +158,30 @@ const ProductDetail = ({ product }) => {
         <div className="flex-1 flex flex-col gap-4">
           <div>
             <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-1">{product.name}</h1>
-            <p className="text-2xl font-semibold text-[#B88E2F]">{formatPrice(product.price)}</p>
-            {product.originalPrice && (
-              <p className="text-lg text-gray-400 line-through">{formatPrice(product.originalPrice)}</p>
-            )}
+            <div className="flex flex-wrap items-center gap-3 mb-1">
+              <p className="text-2xl font-semibold text-[#B88E2F] mb-0">{formatPrice(product.price)}</p>
+              {product.originalPrice && (
+                <p className="text-lg text-gray-400 line-through mb-0">{formatPrice(product.originalPrice)}</p>
+              )}
+            </div>
+            {/* Dynamic Stock Indicator */}
+            <div className="stock-indicator mt-2">
+              {product.stock !== undefined && (
+                product.stock <= 0 ? (
+                  <span className="inline-block px-3 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full uppercase tracking-wider">
+                    Out of Stock
+                  </span>
+                ) : product.stock <= 5 ? (
+                  <span className="inline-block px-3 py-1 bg-orange-100 text-orange-700 text-xs font-bold rounded-full uppercase tracking-wider">
+                    Only {product.stock} left in stock!
+                  </span>
+                ) : (
+                  <span className="inline-block px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full uppercase tracking-wider">
+                    In Stock
+                  </span>
+                )
+              )}
+            </div>
           </div>
 
           <div className="star-rating flex items-center gap-2">
@@ -237,6 +263,7 @@ const ProductDetail = ({ product }) => {
               <button 
                 onClick={() => handleQuantityChange(-1)}
                 className="font-bold text-lg text-gray-600 hover:text-black transition"
+                disabled={isOutOfStock}
               >
                 -
               </button>
@@ -244,6 +271,7 @@ const ProductDetail = ({ product }) => {
               <button 
                 onClick={() => handleQuantityChange(1)}
                 className="font-bold text-lg text-gray-600 hover:text-black transition"
+                disabled={isOutOfStock || quantity >= (product.stock || 999)}
               >
                 +
               </button>
@@ -251,15 +279,25 @@ const ProductDetail = ({ product }) => {
             
             <button 
               onClick={handleAddToCart}
-              className="px-5 py-2 border-2 border-black rounded hover:bg-black hover:text-white font-semibold transition duration-300 flex items-center gap-2"
+              disabled={isOutOfStock}
+              className={`px-5 py-2 border-2 border-black rounded font-semibold transition duration-300 flex items-center gap-2 ${
+                isOutOfStock 
+                  ? "border-gray-300 text-gray-400 bg-gray-55 cursor-not-allowed opacity-60" 
+                  : "hover:bg-black hover:text-white"
+              }`}
             >
               <ShoppingCart className="w-4 h-4" />
-              Add To Cart
+              {isOutOfStock ? "Out of Stock" : "Add To Cart"}
             </button>
 
             <button 
               onClick={handleBuyNow}
-              className="px-5 py-2 bg-[#B88E2F] text-white rounded font-semibold hover:bg-[#a5761f] transition duration-300 shadow-md"
+              disabled={isOutOfStock}
+              className={`px-5 py-2 text-white rounded font-semibold transition duration-300 shadow-md ${
+                isOutOfStock 
+                  ? "bg-gray-400 cursor-not-allowed opacity-60" 
+                  : "bg-[#B88E2F] hover:bg-[#a5761f]"
+              }`}
             >
               Buy Now
             </button>

@@ -502,15 +502,28 @@ const Bill = () => {
           </div>
 
           {/* List of items */}
-          <div className="flex flex-col gap-3 pb-4 border-b border-gray-300 max-h-[200px] overflow-y-auto pr-1">
-            {items.map((item) => (
-              <div key={item._id} className="flex justify-between items-start text-sm">
-                <p className="text-gray-500 text-left pr-4 mb-0">
-                  {item.name} <span className="font-bold text-gray-900 text-xs">× {item.quantity}</span>
-                </p>
-                <p className="font-medium text-gray-700 mb-0">{formatPrice(item.price * item.quantity)}</p>
-              </div>
-            ))}
+          <div className="space-y-4 mb-6 max-h-[240px] overflow-y-auto pr-2">
+            {items.map((item) => {
+              const isOutOfStock = item.stock !== undefined && item.stock <= 0;
+              const hasInsufficientStock = item.stock !== undefined && item.quantity > item.stock;
+              return (
+                <div key={item._id} className="flex justify-between items-start text-sm border-b border-gray-100 pb-2">
+                  <div className="flex flex-col max-w-[70%]">
+                    <p className="text-gray-650 font-medium mb-0 truncate">
+                      {item.name} <span className="text-xs text-gray-400 font-bold ml-1">x {item.quantity}</span>
+                    </p>
+                    {isOutOfStock ? (
+                      <span className="text-[10px] text-red-650 font-bold mt-0.5">Out of Stock</span>
+                    ) : hasInsufficientStock ? (
+                      <span className="text-[10px] text-orange-600 font-bold mt-0.5">Only {item.stock} available</span>
+                    ) : null}
+                  </div>
+                  <p className="font-medium text-gray-700 mb-0">
+                    {formatPrice(item.price * (isOutOfStock ? 0 : item.quantity))}
+                  </p>
+                </div>
+              );
+            })}
           </div>
 
           <div className="flex flex-col gap-2 pb-4 border-b border-gray-300">
@@ -535,9 +548,20 @@ const Bill = () => {
             </p>
           </div>
 
+          {items.some(item => item.stock !== undefined && (item.stock <= 0 || item.quantity > item.stock)) && (
+            <p className="text-xs text-red-650 font-semibold mt-4 text-center leading-normal">
+              ⚠️ Your cart contains out-of-stock items or quantities exceeding available stock. Please adjust your cart.
+            </p>
+          )}
+
           <button 
             onClick={handlePlaceOrder}
-            className="w-full py-3 bg-[#B88E2F] hover:bg-[#a5761f] text-white font-bold rounded shadow transition duration-300 mt-4"
+            disabled={items.some(item => item.stock !== undefined && (item.stock <= 0 || item.quantity > item.stock))}
+            className={`w-full py-3 text-white font-bold rounded shadow transition duration-300 mt-4 ${
+              items.some(item => item.stock !== undefined && (item.stock <= 0 || item.quantity > item.stock))
+                ? "bg-gray-400 cursor-not-allowed opacity-65"
+                : "bg-[#B88E2F] hover:bg-[#a5761f]"
+            }`}
           >
             Place Order
           </button>

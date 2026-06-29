@@ -37,15 +37,18 @@ export const useCartStore = create((set, get) => ({
   addToCart: (product, quantity = 1) => {
     set((state) => {
       const existing = state.items.find((item) => item._id === product._id);
+      const maxStock = product.stock !== undefined ? product.stock : 999;
       let newItems;
       if (existing) {
+        const targetQty = Math.min(maxStock, existing.quantity + quantity);
         newItems = state.items.map((item) =>
           item._id === product._id
-            ? { ...item, quantity: item.quantity + quantity }
+            ? { ...item, quantity: targetQty }
             : item
         );
       } else {
-        newItems = [...state.items, { ...product, quantity }];
+        const targetQty = Math.min(maxStock, quantity);
+        newItems = [...state.items, { ...product, quantity: targetQty }];
       }
       saveToStorage("furniro_cart_items", newItems);
       return { items: newItems };
@@ -65,9 +68,15 @@ export const useCartStore = create((set, get) => ({
       get().removeFromCart(productId);
       return;
     }
+    const item = get().items.find((i) => i._id === productId);
+    const maxStock = item && item.stock !== undefined ? item.stock : 999;
+    
+    // Cap at maximum available stock
+    const targetQty = Math.min(maxStock, quantity);
+    
     set((state) => {
       const newItems = state.items.map((item) =>
-        item._id === productId ? { ...item, quantity } : item
+        item._id === productId ? { ...item, quantity: targetQty } : item
       );
       saveToStorage("furniro_cart_items", newItems);
       return { items: newItems };
@@ -80,10 +89,10 @@ export const useCartStore = create((set, get) => ({
   },
 
   getTotal: () => {
-    return get().items.reduce(
-      (total, item) => total + item.price * item.quantity,
-      0
-    );
+    return get().items.reduce((total, item) => {
+      const isOutOfStock = item.stock !== undefined && item.stock <= 0;
+      return total + (isOutOfStock ? 0 : item.price * item.quantity);
+    }, 0);
   },
 
   getItemCount: () => {

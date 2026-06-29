@@ -1,8 +1,23 @@
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const Product = require("./models/Product");
+const path = require("path");
+const fs = require("fs");
+const cloudinary = require("cloudinary").v2;
 
 dotenv.config();
+
+if (
+  process.env.CLOUDINARY_CLOUD_NAME &&
+  process.env.CLOUDINARY_API_KEY &&
+  process.env.CLOUDINARY_API_SECRET
+) {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+  });
+}
 
 const products = [
   {
@@ -420,6 +435,70 @@ const seedDB = async () => {
 
     await Product.deleteMany({});
     console.log("🗑️  Cleared existing products");
+
+    // Check if Cloudinary is configured and upload images
+    const hasCloudinary =
+      process.env.CLOUDINARY_CLOUD_NAME &&
+      process.env.CLOUDINARY_API_KEY &&
+      process.env.CLOUDINARY_API_SECRET;
+
+    if (hasCloudinary) {
+      console.log("☁️  Uploading seed images to Cloudinary...");
+      for (const p of products) {
+        if (p.image && !p.image.startsWith("http")) {
+          const localImgPath = path.join(__dirname, "../frontend/public", p.image);
+          if (fs.existsSync(localImgPath)) {
+            try {
+              const baseName = path.basename(p.image, path.extname(p.image));
+              const uploadRes = await cloudinary.uploader.upload(localImgPath, {
+                folder: "furnio/products",
+                public_id: `${p.name.toLowerCase().replace(/[^a-z0-9]/g, "_")}_${baseName}`,
+                overwrite: true,
+                invalidate: true,
+              });
+              p.image = uploadRes.secure_url;
+              console.log(`Uploaded ${p.name} image: ${uploadRes.secure_url}`);
+            } catch (err) {
+              console.error(`Failed to upload image for ${p.name}:`, err.message);
+            }
+          } else {
+            console.warn(`Local file not found for ${p.name}: ${localImgPath}`);
+          }
+        }
+
+        if (p.images && p.images.length > 0) {
+          const uploadedImages = [];
+          for (let i = 0; i < p.images.length; i++) {
+            const imgPath = p.images[i];
+            if (imgPath && !imgPath.startsWith("http")) {
+              const localImgPath = path.join(__dirname, "../frontend/public", imgPath);
+              if (fs.existsSync(localImgPath)) {
+                try {
+                  const baseName = path.basename(imgPath, path.extname(imgPath));
+                  const uploadRes = await cloudinary.uploader.upload(localImgPath, {
+                    folder: "furnio/products",
+                    public_id: `${p.name.toLowerCase().replace(/[^a-z0-9]/g, "_")}_gallery_${i}_${baseName}`,
+                    overwrite: true,
+                    invalidate: true,
+                  });
+                  uploadedImages.push(uploadRes.secure_url);
+                } catch (err) {
+                  console.error(`Failed to upload gallery image ${i} for ${p.name}:`, err.message);
+                  uploadedImages.push(imgPath);
+                }
+              } else {
+                uploadedImages.push(imgPath);
+              }
+            } else {
+              uploadedImages.push(imgPath);
+            }
+          }
+          p.images = uploadedImages;
+        }
+      }
+    } else {
+      console.log("⚠️  Cloudinary not configured. Seeding with local image paths.");
+    }
 
     await Product.insertMany(products);
     console.log(`🌱 Seeded ${products.length} products`);

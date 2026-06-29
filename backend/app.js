@@ -79,6 +79,7 @@ const orderRoutes = require("./routes/orders");
 const paymentRoutes = require("./routes/payments");
 const blogRoutes = require("./routes/blogs");
 const userRoutes = require("./routes/users");
+const uploadRoutes = require("./routes/upload");
 
 app.use("/api/products", productRoutes);
 app.use("/api/contact", contactRoutes);
@@ -86,6 +87,7 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/blogs", blogRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/upload", uploadRoutes);
 
 
 // Health check
