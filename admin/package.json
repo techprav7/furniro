@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node app.js",
     "dev": "npx nodemon app.js",
-    "build": "echo 'No build step required'"
+    "build": "echo 'No build step required'",
+    "postinstall": "cd ../backend && npm install"
   },
   "author": "Praver Jain",
   "license": "MIT",

@@ -18,8 +18,8 @@ const __dirname = path.dirname(__filename);
 // Use createRequire to load CommonJS models from the backend
 const require = createRequire(import.meta.url);
 
-// Use local mongoose instance from node_modules
-const mongoose = require("mongoose");
+// Use the exact mongoose instance from backend node_modules to avoid separate connection pool/instances
+const mongoose = require("../backend/node_modules/mongoose");
 
 dotenv.config();
 
