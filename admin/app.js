@@ -86,7 +86,6 @@ if (missingEnvVars.length > 0) {
 const startAdmin = async () => {
   try {
     await mongoose.connect(process.env.MONGODB_URI);
-    await localMongoose.connect(process.env.MONGODB_URI);
     console.log("✅ Admin panel connected to MongoDB");
   } catch (err) {
     console.error("❌ MongoDB connection failed:", err.message);
