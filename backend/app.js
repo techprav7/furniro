@@ -17,18 +17,29 @@ const app = express();
 // HTTP security headers
 app.use(helmet());
 
-// CORS — only allow requests from frontend
+// CORS — allow requests from frontend and admin URLs (supports comma-separated list and trailing slashes)
 app.use(
   cors({
     origin: function (origin, callback) {
       if (!origin) return callback(null, true);
-      if (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL) {
+      
+      const cleanOrigin = origin.replace(/\/$/, "");
+      
+      // Allow localhost for development
+      if (cleanOrigin.startsWith("http://localhost:") || cleanOrigin.startsWith("http://127.0.0.1:")) {
         return callback(null, true);
       }
-      if (origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:")) {
-        return callback(null, true);
+      
+      // Check FRONTEND_URL environment variable
+      if (process.env.FRONTEND_URL) {
+        const allowedOrigins = process.env.FRONTEND_URL.split(",").map(url => url.trim().replace(/\/$/, ""));
+        if (allowedOrigins.includes(cleanOrigin)) {
+          return callback(null, true);
+        }
       }
-      return callback(new Error("Not allowed by CORS"));
+      
+      // Reject origin cleanly by omitting CORS headers
+      return callback(null, false);
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE"],

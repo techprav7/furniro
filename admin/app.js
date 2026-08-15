@@ -19,17 +19,38 @@ const __dirname = path.dirname(__filename);
 const require = createRequire(import.meta.url);
 
 // Use the exact mongoose instance from backend node_modules to avoid separate connection pool/instances
-const mongoose = require("../backend/node_modules/mongoose");
+let mongoose;
+try {
+  mongoose = require("../backend/node_modules/mongoose");
+} catch (e) {
+  try {
+    mongoose = require("mongoose");
+    console.warn("⚠️ Warning: Could not load mongoose from '../backend/node_modules/mongoose'. Falling back to local admin mongoose.");
+  } catch (err) {
+    console.error("❌ ERROR: Mongoose could not be loaded. Please ensure it is installed.");
+    process.exit(1);
+  }
+}
 
 dotenv.config();
 
 // ─── Load Backend Mongoose Models (CommonJS) ────────────────────────────────
-const Product = require("../backend/models/Product.js");
-const Order = require("../backend/models/Order.js");
-const Blog = require("../backend/models/Blog.js");
-const User = require("../backend/models/User.js");
-const Payment = require("../backend/models/Payment.js");
-const Contact = require("../backend/models/Contact.js");
+let Product, Order, Blog, User, Payment, Contact;
+try {
+  Product = require("../backend/models/Product.js");
+  Order = require("../backend/models/Order.js");
+  Blog = require("../backend/models/Blog.js");
+  User = require("../backend/models/User.js");
+  Payment = require("../backend/models/Payment.js");
+  Contact = require("../backend/models/Contact.js");
+} catch (err) {
+  console.error("\n❌ DEPLOYMENT ERROR: Failed to load backend models in the Admin panel!");
+  console.error("This usually happens when the backend directory is missing or not packaged in your Admin panel deployment.");
+  console.error("👉 FIX: If deploying on Render, ensure the 'Root Directory' is left EMPTY (not 'admin') so the backend folder is accessible.");
+  console.error("👉 BUILD: Set the Build Command to 'npm run install:all' and the Start Command to 'npm run admin'.\n");
+  console.error("Original Error:", err.message);
+  process.exit(1);
+}
 
 // ─── Register AdminJS Mongoose Adapter ──────────────────────────────────────
 AdminJS.registerAdapter(AdminJSMongoose);
@@ -334,6 +355,12 @@ const startAdmin = async () => {
 
   // ─── Express App ────────────────────────────────────────────────────────
   const app = express();
+  
+  // Redirect root requests to the AdminJS dashboard path (/admin)
+  app.get("/", (req, res) => {
+    res.redirect(admin.options.rootPath);
+  });
+
   app.use(admin.options.rootPath, adminRouter);
 
   const PORT = process.env.PORT || process.env.ADMIN_PORT || 3002;
