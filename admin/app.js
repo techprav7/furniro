@@ -310,7 +310,7 @@ const startAdmin = async () => {
     rootPath: "/admin",
     branding: {
       companyName: "Furniro Admin",
-      logo: false,
+      logo: "https://res.cloudinary.com/dqtw7ofz2/image/upload/v1786774749/furnio/assets/furniro_logo.png",
       softwareBrothers: false,
     },
     dashboard: {
