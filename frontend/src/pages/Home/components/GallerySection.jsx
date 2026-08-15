@@ -1,8 +1,10 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import diningImg from '../../../assets/Rectangle38.png';
-import livingImg from '../../../assets/Asgaardsofa3.png';
-import bedroomImg from '../../../assets/Rectangle39.png';
+import { cloudinaryAssets } from '../../../cloudinaryAssets';
+
+const diningImg = cloudinaryAssets['Rectangle38.png'];
+const livingImg = cloudinaryAssets['Asgaardsofa3.png'];
+const bedroomImg = cloudinaryAssets['Rectangle39.png'];
 
 function GallerySection() {
   const navigate = useNavigate();

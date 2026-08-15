@@ -442,28 +442,51 @@ const seedDB = async () => {
       process.env.CLOUDINARY_API_KEY &&
       process.env.CLOUDINARY_API_SECRET;
 
+    // Load cloudinaryAssets mapping if available
+    let cloudinaryAssets = {};
+    const mapFilePath = path.join(__dirname, "../frontend/src/cloudinaryAssets.js");
+    if (fs.existsSync(mapFilePath)) {
+      try {
+        const fileContent = fs.readFileSync(mapFilePath, "utf8");
+        const startIdx = fileContent.indexOf("{");
+        const endIdx = fileContent.lastIndexOf("}");
+        if (startIdx !== -1 && endIdx !== -1) {
+          cloudinaryAssets = JSON.parse(fileContent.substring(startIdx, endIdx + 1));
+          console.log(`Loaded ${Object.keys(cloudinaryAssets).length} mapped assets from cloudinaryAssets.js`);
+        }
+      } catch (err) {
+        console.error("Failed to parse cloudinaryAssets.js in seed script:", err.message);
+      }
+    }
+
     if (hasCloudinary) {
-      console.log("☁️  Uploading seed images to Cloudinary...");
+      console.log("☁️  Uploading/mapping seed images to Cloudinary...");
       for (const p of products) {
         if (p.image && !p.image.startsWith("http")) {
           const fileName = path.basename(p.image);
-          const localImgPath = path.join(__dirname, "../frontend/src/assets", fileName);
-          if (fs.existsSync(localImgPath)) {
-            try {
-              const baseName = path.basename(fileName, path.extname(fileName));
-              const uploadRes = await cloudinary.uploader.upload(localImgPath, {
-                folder: "furnio/products",
-                public_id: `${p.name.toLowerCase().replace(/[^a-z0-9]/g, "_")}_${baseName}`,
-                overwrite: true,
-                invalidate: true,
-              });
-              p.image = uploadRes.secure_url;
-              console.log(`Uploaded ${p.name} image: ${uploadRes.secure_url}`);
-            } catch (err) {
-              console.error(`Failed to upload image for ${p.name}:`, err.message);
-            }
+          
+          if (cloudinaryAssets[fileName]) {
+            p.image = cloudinaryAssets[fileName];
+            console.log(`Mapped ${p.name} image using cloudinaryAssets: ${p.image}`);
           } else {
-            console.warn(`Local file not found for ${p.name}: ${localImgPath}`);
+            const localImgPath = path.join(__dirname, "../frontend/src/assets", fileName);
+            if (fs.existsSync(localImgPath)) {
+              try {
+                const baseName = path.basename(fileName, path.extname(fileName));
+                const uploadRes = await cloudinary.uploader.upload(localImgPath, {
+                  folder: "furnio/products",
+                  public_id: `${p.name.toLowerCase().replace(/[^a-z0-9]/g, "_")}_${baseName}`,
+                  overwrite: true,
+                  invalidate: true,
+                });
+                p.image = uploadRes.secure_url;
+                console.log(`Uploaded ${p.name} image: ${uploadRes.secure_url}`);
+              } catch (err) {
+                console.error(`Failed to upload image for ${p.name}:`, err.message);
+              }
+            } else {
+              console.warn(`Local file not found and no Cloudinary map for ${p.name}: ${localImgPath}`);
+            }
           }
         }
 
@@ -473,23 +496,30 @@ const seedDB = async () => {
             const imgPath = p.images[i];
             if (imgPath && !imgPath.startsWith("http")) {
               const fileName = path.basename(imgPath);
-              const localImgPath = path.join(__dirname, "../frontend/src/assets", fileName);
-              if (fs.existsSync(localImgPath)) {
-                try {
-                  const baseName = path.basename(fileName, path.extname(fileName));
-                  const uploadRes = await cloudinary.uploader.upload(localImgPath, {
-                    folder: "furnio/products",
-                    public_id: `${p.name.toLowerCase().replace(/[^a-z0-9]/g, "_")}_gallery_${i}_${baseName}`,
-                    overwrite: true,
-                    invalidate: true,
-                  });
-                  uploadedImages.push(uploadRes.secure_url);
-                } catch (err) {
-                  console.error(`Failed to upload gallery image ${i} for ${p.name}:`, err.message);
+              
+              if (cloudinaryAssets[fileName]) {
+                uploadedImages.push(cloudinaryAssets[fileName]);
+                console.log(`Mapped ${p.name} gallery image ${i} using cloudinaryAssets: ${cloudinaryAssets[fileName]}`);
+              } else {
+                const localImgPath = path.join(__dirname, "../frontend/src/assets", fileName);
+                if (fs.existsSync(localImgPath)) {
+                  try {
+                    const baseName = path.basename(fileName, path.extname(fileName));
+                    const uploadRes = await cloudinary.uploader.upload(localImgPath, {
+                      folder: "furnio/products",
+                      public_id: `${p.name.toLowerCase().replace(/[^a-z0-9]/g, "_")}_gallery_${i}_${baseName}`,
+                      overwrite: true,
+                      invalidate: true,
+                    });
+                    uploadedImages.push(uploadRes.secure_url);
+                  } catch (err) {
+                    console.error(`Failed to upload gallery image ${i} for ${p.name}:`, err.message);
+                    uploadedImages.push(imgPath);
+                  }
+                } else {
+                  console.warn(`Local gallery file not found and no Cloudinary map for ${p.name}: ${localImgPath}`);
                   uploadedImages.push(imgPath);
                 }
-              } else {
-                uploadedImages.push(imgPath);
               }
             } else {
               uploadedImages.push(imgPath);

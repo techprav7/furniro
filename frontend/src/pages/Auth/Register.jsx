@@ -1,5 +1,7 @@
 import { SignUp } from "@clerk/clerk-react";
-import bgImg from "../../assets/Bglogin.png";
+import { cloudinaryAssets } from "../../cloudinaryAssets";
+const bgImg = cloudinaryAssets["Bglogin.png"];
+
 
 const Register = () => {
   return (

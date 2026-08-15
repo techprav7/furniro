@@ -1,7 +1,9 @@
-import trophyImg from "../assets/trophy.png";
-import guaranteeImg from "../assets/guarantee.png";
-import shippingImg from "../assets/shipping.png";
-import supportImg from "../assets/customer-support.png";
+import { cloudinaryAssets } from "../cloudinaryAssets";
+
+const trophyImg = cloudinaryAssets["trophy.png"];
+const guaranteeImg = cloudinaryAssets["guarantee.png"];
+const shippingImg = cloudinaryAssets["shipping.png"];
+const supportImg = cloudinaryAssets["customer-support.png"];
 
 const Quality_assurance = () => {
   return (

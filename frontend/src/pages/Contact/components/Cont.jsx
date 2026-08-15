@@ -1,9 +1,12 @@
 import { useState, useEffect } from "react";
 import { useUser } from "@clerk/clerk-react";
 import api from "../../../utils/api";
-import vectorImg from "../../../assets/Vector.png";
-import phoneImg from "../../../assets/bxs_phone.png";
-import clockImg from "../../../assets/bi_clock-fill.png";
+import { cloudinaryAssets } from "../../../cloudinaryAssets";
+
+const vectorImg = cloudinaryAssets["Vector.png"];
+const phoneImg = cloudinaryAssets["bxs_phone.png"];
+const clockImg = cloudinaryAssets["bi_clock-fill.png"];
+
 
 const Cont = () => {
   const { user } = useUser();

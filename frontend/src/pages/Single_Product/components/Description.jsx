@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import { Star } from 'lucide-react';
 import api from '../../../utils/api';
-import aImg from "../../../assets/a.png";
-import bImg from "../../../assets/b.png";
+import { cloudinaryAssets } from "../../../cloudinaryAssets";
+
+const aImg = cloudinaryAssets["a.png"];
+const bImg = cloudinaryAssets["b.png"];
 
 const Description = ({ product }) => {
   const [activeTab, setActiveTab] = useState('description');

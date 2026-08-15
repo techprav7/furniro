@@ -81,27 +81,69 @@ const seedBlogs = async () => {
       process.env.CLOUDINARY_API_KEY &&
       process.env.CLOUDINARY_API_SECRET;
 
+    // Load cloudinaryAssets mapping if available
+    let cloudinaryAssets = {};
+    const mapFilePath = path.join(__dirname, "../frontend/src/cloudinaryAssets.js");
+    if (fs.existsSync(mapFilePath)) {
+      try {
+        const fileContent = fs.readFileSync(mapFilePath, "utf8");
+        const startIdx = fileContent.indexOf("{");
+        const endIdx = fileContent.lastIndexOf("}");
+        if (startIdx !== -1 && endIdx !== -1) {
+          cloudinaryAssets = JSON.parse(fileContent.substring(startIdx, endIdx + 1));
+          console.log(`Loaded ${Object.keys(cloudinaryAssets).length} mapped assets from cloudinaryAssets.js`);
+        }
+      } catch (err) {
+        console.error("Failed to parse cloudinaryAssets.js in blog seed script:", err.message);
+      }
+    }
+
     if (hasCloudinary) {
-      console.log("☁️  Uploading blog seed images to Cloudinary...");
+      console.log("☁️  Uploading/mapping blog seed images to Cloudinary...");
       for (const post of blogPosts) {
         if (post.image && !post.image.startsWith("http")) {
-          const localImgPath = path.join(__dirname, "../frontend/public", post.image);
-          if (fs.existsSync(localImgPath)) {
-            try {
-              const baseName = path.basename(post.image, path.extname(post.image));
-              const uploadRes = await cloudinary.uploader.upload(localImgPath, {
-                folder: "furnio/blogs",
-                public_id: `${post.title.toLowerCase().replace(/[^a-z0-9]/g, "_")}_${baseName}`,
-                overwrite: true,
-                invalidate: true,
-              });
-              post.image = uploadRes.secure_url;
-              console.log(`Uploaded blog "${post.title}" image: ${uploadRes.secure_url}`);
-            } catch (err) {
-              console.error(`Failed to upload image for blog "${post.title}":`, err.message);
-            }
+          const fileName = path.basename(post.image);
+          
+          if (cloudinaryAssets[fileName]) {
+            post.image = cloudinaryAssets[fileName];
+            console.log(`Mapped blog "${post.title}" image using cloudinaryAssets: ${post.image}`);
           } else {
-            console.warn(`Local blog image file not found: ${localImgPath}`);
+            const localImgPath = path.join(__dirname, "../frontend/public", post.image);
+            if (fs.existsSync(localImgPath)) {
+              try {
+                const baseName = path.basename(post.image, path.extname(post.image));
+                const uploadRes = await cloudinary.uploader.upload(localImgPath, {
+                  folder: "furnio/blogs",
+                  public_id: `${post.title.toLowerCase().replace(/[^a-z0-9]/g, "_")}_${baseName}`,
+                  overwrite: true,
+                  invalidate: true,
+                });
+                post.image = uploadRes.secure_url;
+                console.log(`Uploaded blog "${post.title}" image: ${uploadRes.secure_url}`);
+              } catch (err) {
+                console.error(`Failed to upload image for blog "${post.title}":`, err.message);
+              }
+            } else {
+              // Try checking if it's in src/assets instead
+              const fallbackPath = path.join(__dirname, "../frontend/src/assets", fileName);
+              if (fs.existsSync(fallbackPath)) {
+                try {
+                  const baseName = path.basename(fileName, path.extname(fileName));
+                  const uploadRes = await cloudinary.uploader.upload(fallbackPath, {
+                    folder: "furnio/blogs",
+                    public_id: `${post.title.toLowerCase().replace(/[^a-z0-9]/g, "_")}_${baseName}`,
+                    overwrite: true,
+                    invalidate: true,
+                  });
+                  post.image = uploadRes.secure_url;
+                  console.log(`Uploaded blog "${post.title}" image from fallback: ${uploadRes.secure_url}`);
+                } catch (err) {
+                  console.error(`Failed to upload fallback image for blog "${post.title}":`, err.message);
+                }
+              } else {
+                console.warn(`Local blog image file not found and no Cloudinary map for "${post.title}": ${fileName}`);
+              }
+            }
           }
         }
       }

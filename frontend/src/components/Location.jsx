@@ -1,5 +1,7 @@
-import furniroLogo from "../assets/Furniro-logo.png";
-import cartBg from "../assets/cartimg.jpg";
+import { cloudinaryAssets } from "../cloudinaryAssets";
+
+const furniroLogo = cloudinaryAssets["Furniro-logo.png"];
+const cartBg = cloudinaryAssets["cartimg.jpg"];
 
 const Location = ({ title = "Page", breadcrumb = "" }) => {
   return (

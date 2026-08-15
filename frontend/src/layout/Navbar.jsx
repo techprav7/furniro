@@ -8,7 +8,9 @@ import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import "../css/Navbar.css";
-import logoImg from "../assets/Logo.png";
+import { cloudinaryAssets } from "../cloudinaryAssets";
+const logoImg = cloudinaryAssets["Logo.png"];
+
 import { useCartStore, useWishlistStore } from "../store/store";
 import { formatPrice } from "../data/productData";
 import { SignedIn, SignedOut, UserButton, useAuth } from "@clerk/clerk-react";

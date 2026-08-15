@@ -1,14 +1,16 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import rect36 from "../../../assets/Rectangle36.png";
-import rect37 from "../../../assets/Rectangle37.png";
-import rect38 from "../../../assets/Rectangle38.png";
-import rect39 from "../../../assets/Rectangle39.png";
-import rect40 from "../../../assets/Rectangle40.png";
-import rect41 from "../../../assets/Rectangle41.png";
-import rect43 from "../../../assets/Rectangle43.png";
-import rect44 from "../../../assets/Rectangle44.png";
-import rect45 from "../../../assets/Rectangle45.png";
+import { cloudinaryAssets } from "../../../cloudinaryAssets";
+
+const rect36 = cloudinaryAssets["Rectangle36.png"];
+const rect37 = cloudinaryAssets["Rectangle37.png"];
+const rect38 = cloudinaryAssets["Rectangle38.png"];
+const rect39 = cloudinaryAssets["Rectangle39.png"];
+const rect40 = cloudinaryAssets["Rectangle40.png"];
+const rect41 = cloudinaryAssets["Rectangle41.png"];
+const rect43 = cloudinaryAssets["Rectangle43.png"];
+const rect44 = cloudinaryAssets["Rectangle44.png"];
+const rect45 = cloudinaryAssets["Rectangle45.png"];
 
 function ProductGrid() {
   const navigate = useNavigate();

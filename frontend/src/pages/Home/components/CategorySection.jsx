@@ -3,11 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-// Asset imports (direct imports or paths as used in other parts)
-import asgaardBg from "../../../assets/scandinavian-interior-mockup-wall-decal-background 1.png";
-import lolitoBg from "../../../assets/Image-living room.png";
-import cloudBedBg from "../../../assets/image 101.png";
-import syltherineBg from "../../../assets/Mask Group.png";
+import { cloudinaryAssets } from "../../../cloudinaryAssets";
+
+const asgaardBg = cloudinaryAssets["scandinavian-interior-mockup-wall-decal-background 1.png"];
+const lolitoBg = cloudinaryAssets["Image-living room.png"];
+const cloudBedBg = cloudinaryAssets["image 101.png"];
+const syltherineBg = cloudinaryAssets["Mask Group.png"];
 
 const slides = [
   {

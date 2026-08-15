@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Rectangle24 from "../../../assets/Rectangle24.png";
-import Rectangle25 from "../../../assets/Rectangle25.png";
-import Rectangle45 from "../../../assets/Rectangle45.png";
+import { cloudinaryAssets } from "../../../cloudinaryAssets";
+
+const Rectangle24 = cloudinaryAssets["Rectangle24.png"];
+const Rectangle25 = cloudinaryAssets["Rectangle25.png"];
+const Rectangle45 = cloudinaryAssets["Rectangle45.png"];
 import { ChevronRight } from "lucide-react";
 
 const images = [Rectangle24, Rectangle25, Rectangle45];

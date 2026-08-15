@@ -1,7 +1,9 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import furniroLogo from "../../assets/Furniro-logo.png";
-import decorImg from "../../assets/image8.png";
+import { cloudinaryAssets } from "../../cloudinaryAssets";
+
+const furniroLogo = cloudinaryAssets["Furniro-logo.png"];
+const decorImg = cloudinaryAssets["image8.png"];
 
 const Error404 = () => {
   return (
