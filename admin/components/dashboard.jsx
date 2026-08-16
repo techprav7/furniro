@@ -134,7 +134,7 @@ const Dashboard = () => {
         <div style={{ display: 'flex', gap: '10px' }}>
           <a href="/admin/resources/ReturnRequest" style={{ textDecoration: 'none' }}>
             <Button variant="secondary" size="sm" style={{ borderColor: '#d97706', color: '#d97706', borderRadius: '6px', fontWeight: 600, backgroundColor: '#fffbeb' }}>
-              🔄 Returns & Exchanges ({s.pendingReturnsCount || 0})
+              ⚠️ Requests & Refunds ({s.pendingReturnsCount || 0})
             </Button>
           </a>
           <a href="/admin/resources/Product/actions/new" style={{ textDecoration: 'none' }}>
@@ -155,7 +155,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* ─── Urgent Action Banner: Pending Returns & Exchanges ─── */}
+      {/* ─── Urgent Action Banner: Pending Customer Requests & Refunds ─── */}
       {s.pendingReturnsCount > 0 && (
         <div style={{
           backgroundColor: '#fffbeb',
@@ -186,16 +186,16 @@ const Dashboard = () => {
             </div>
             <div>
               <Text style={{ fontWeight: 700, fontSize: '15px', color: '#92400e', margin: 0 }}>
-                ⚠️ {s.pendingReturnsCount} Return / Exchange Request{s.pendingReturnsCount > 1 ? 's' : ''} Awaiting Review
+                ⚠️ {s.pendingReturnsCount} Customer Request{s.pendingReturnsCount > 1 ? 's' : ''} Awaiting Review (Cancellations, Returns & Exchanges)
               </Text>
               <Text size="xs" style={{ color: '#b45309', margin: '2px 0 0 0' }}>
-                Customer return or replacement requests need your approval or inspection.
+                Review and approve order cancellations, return inspections, or item replacements before refunds are initiated.
               </Text>
             </div>
           </div>
           <a href="/admin/resources/ReturnRequest" style={{ textDecoration: 'none' }}>
             <Button variant="primary" size="sm" style={{ backgroundColor: '#d97706', borderColor: '#d97706', color: '#fff', borderRadius: '6px', fontWeight: 700, padding: '8px 18px' }}>
-              Review Return Requests ({s.pendingReturnsCount}) →
+              Review Requests & Refunds ({s.pendingReturnsCount}) →
             </Button>
           </a>
         </div>
@@ -205,7 +205,7 @@ const Dashboard = () => {
       <div style={{ display: 'flex', flexWrap: 'wrap', margin: '-8px', marginBottom: '24px' }}>
         <StatCard title="Total Revenue" value={formatSales(s.totalSales)} subtitle="Paid & Delivered Orders" icon="DollarSign" color="#2ecc71" />
         <StatCard title="Total Orders" value={s.totalOrders} subtitle="All Lifetime Orders" icon="ShoppingBag" color="#3498db" />
-        <StatCard title="Return Requests" value={s.pendingReturnsCount} subtitle={s.pendingReturnsCount > 0 ? "Awaiting Approval" : "All Clear"} icon="RotateCcw" color="#d97706" />
+        <StatCard title="Customer Requests" value={s.pendingReturnsCount} subtitle={s.pendingReturnsCount > 0 ? "Awaiting Review & Refund" : "All Clear"} icon="RotateCcw" color="#d97706" />
         <StatCard title="Total Catalog" value={s.totalProducts} subtitle={`${s.lowStockCount} low in stock`} icon="Package" color="#B88E2F" />
         <StatCard title="Customers" value={s.totalUsers} subtitle="Registered Accounts" icon="Users" color="#9b59b6" />
         <StatCard title="Inquiries" value={s.totalContacts} subtitle="Contact Submissions" icon="Mail" color="#1abc9c" />

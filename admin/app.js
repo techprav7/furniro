@@ -84,9 +84,9 @@ const dashboardHandler = async (request, response, context) => {
     const totalCoupons = await Coupon.countDocuments({ isActive: true });
     const totalBanners = await Banner.countDocuments({ isActive: true });
 
-    // Pending Returns & Exchanges Count
+    // Pending Customer Requests Count (Cancellations, Returns, Exchanges)
     const pendingReturnsCount = await Order.countDocuments({
-      status: { $in: ["return_requested", "exchange_requested"] }
+      status: { $in: ["cancel_requested", "return_requested", "exchange_requested"] }
     });
 
     // Sum of paid/shipped/delivered/dispatched/out_for_delivery orders
@@ -879,7 +879,7 @@ const startAdmin = async () => {
         },
       },
 
-      // ── Returns & Exchanges (Dedicated Approval Center) ────────────────
+      // ── Customer Requests (Cancellations, Returns, Exchanges & Refunds) ───
       {
         resource: ReturnRequest,
         options: {
@@ -889,6 +889,7 @@ const startAdmin = async () => {
           listProperties: [
             "razorpayOrderId",
             "status",
+            "cancellationReason",
             "returnReason",
             "exchangeReason",
             "totalAmount",
@@ -899,11 +900,11 @@ const startAdmin = async () => {
             "razorpayOrderId",
             "status",
             "totalAmount",
+            "cancellationReason",
             "returnReason",
             "exchangeReason",
             "refundId",
             "refundAmount",
-            "cancellationReason",
             "trackingNumber",
             "courierPartner",
             "deliveryNotes",
@@ -914,6 +915,7 @@ const startAdmin = async () => {
           ],
           editProperties: [
             "status",
+            "cancellationReason",
             "returnReason",
             "exchangeReason",
             "deliveryNotes"
@@ -921,16 +923,20 @@ const startAdmin = async () => {
           properties: {
             status: {
               availableValues: [
-                { value: "return_requested", label: "🔄 Return Requested (Pending Approval)" },
-                { value: "exchange_requested", label: "🔁 Exchange Requested (Pending Approval)" },
+                { value: "cancel_requested", label: "⚠️ Cancellation Requested (Pending Admin Approval)" },
+                { value: "cancelled", label: "❌ Cancellation Approved & Stock Restored" },
+                { value: "return_requested", label: "🔄 Return Requested (Pending Admin Approval)" },
                 { value: "returned", label: "↩️ Return Approved & Items Received" },
+                { value: "exchange_requested", label: "🔁 Exchange Requested (Pending Admin Approval)" },
                 { value: "replaced", label: "✨ Exchange Approved & Replaced" },
                 { value: "refunded", label: "💰 Refund Issued" },
-                { value: "delivered", label: "✅ Delivered (Request Closed/Rejected)" },
+                { value: "paid", label: "🟢 Order Paid (Active)" },
+                { value: "delivered", label: "✅ Delivered (Active)" },
               ],
             },
             shippingAddress: { type: "mixed" },
             items: { type: "mixed" },
+            cancellationReason: { type: "textarea" },
             returnReason: { type: "textarea" },
             exchangeReason: { type: "textarea" },
           },
@@ -942,13 +948,13 @@ const startAdmin = async () => {
                 const { resource, currentAdmin } = context;
                 const { sortBy = "updatedAt", direction = "desc", page = 1, perPage = 20 } = request.query;
 
-                // Query condition: filter by selected status or all return/exchange lifecycle by default
+                // Query condition: filter by selected status or all requests & refund lifecycle by default
                 let query = {};
                 const selectedStatus = request.query["filters.status"];
                 if (selectedStatus) {
                   query.status = selectedStatus;
                 } else {
-                  query.status = { $in: ["return_requested", "exchange_requested", "returned", "replaced"] };
+                  query.status = { $in: ["cancel_requested", "return_requested", "exchange_requested", "cancelled", "returned", "replaced", "refunded"] };
                 }
 
                 if (request.query["filters.razorpayOrderId"]) {
@@ -973,6 +979,66 @@ const startAdmin = async () => {
                     direction,
                     sortBy,
                   },
+                };
+              }
+            },
+
+            // ❌ 1-Click Action: Approve Cancellation & Process Refund
+            approveCancellation: {
+              actionType: "record",
+              component: false,
+              icon: "CheckCircle",
+              label: "Approve Cancel & Refund",
+              guard: "Approve cancellation for this order, restore inventory, initiate refund, and notify customer?",
+              isVisible: (context) => {
+                const status = context.record?.get("status");
+                return status === "cancel_requested";
+              },
+              handler: async (request, response, context) => {
+                const { record, resource, currentAdmin } = context;
+                const orderId = record.id();
+                const order = await Order.findById(orderId);
+                if (!order) throw new Error("Order not found");
+
+                const mockRefundId = `admin_rfnd_${Date.now()}`;
+                order.status = "cancelled";
+                order.refundId = mockRefundId;
+                order.refundAmount = order.totalAmount;
+                await order.save();
+
+                await Payment.findOneAndUpdate(
+                  { razorpayOrderId: order.razorpayOrderId },
+                  {
+                    $set: {
+                      status: "refunded",
+                      refundId: mockRefundId,
+                      refundAmount: order.totalAmount
+                    }
+                  }
+                );
+
+                // Restore inventory
+                if (order.items && order.items.length > 0) {
+                  for (const item of order.items) {
+                    if (item.productId) {
+                      await Product.findByIdAndUpdate(item.productId, {
+                        $inc: { stock: item.quantity }
+                      });
+                    }
+                  }
+                }
+
+                // Send cancellation & refund confirmation email
+                await sendOrderStatusNotification(order).catch(err => console.error("Cancel approval email error:", err));
+
+                const updatedRecord = await resource.findOne(orderId);
+                return {
+                  record: updatedRecord.toJSON(currentAdmin),
+                  notice: {
+                    message: `✅ Cancellation for Order #${order.razorpayOrderId} APPROVED. Refund of ₹${order.totalAmount} initiated, stock restored, and customer notified.`,
+                    type: "success"
+                  },
+                  redirectUrl: h.recordActionUrl({ resourceId: resource.id(), recordId: orderId, actionName: "show" })
                 };
               }
             },
@@ -1064,10 +1130,10 @@ const startAdmin = async () => {
               component: false,
               icon: "DollarSign",
               label: "Approve Refund",
-              guard: "Issue full refund for this returned order and notify customer?",
+              guard: "Issue full refund for this order and notify customer?",
               isVisible: (context) => {
                 const status = context.record?.get("status");
-                return ["return_requested", "returned"].includes(status);
+                return ["cancel_requested", "return_requested", "returned"].includes(status);
               },
               handler: async (request, response, context) => {
                 const { record, resource, currentAdmin } = context;
@@ -1113,10 +1179,10 @@ const startAdmin = async () => {
               component: false,
               icon: "XCircle",
               label: "Reject Request",
-              guard: "Reject this return/exchange request? Order will revert to Delivered status.",
+              guard: "Reject this request? Order will revert to its previous active status.",
               isVisible: (context) => {
                 const status = context.record?.get("status");
-                return ["return_requested", "exchange_requested"].includes(status);
+                return ["cancel_requested", "return_requested", "exchange_requested"].includes(status);
               },
               handler: async (request, response, context) => {
                 const { record, resource, currentAdmin } = context;
@@ -1124,7 +1190,11 @@ const startAdmin = async () => {
                 const order = await Order.findById(orderId);
                 if (!order) throw new Error("Order not found");
 
-                order.status = "delivered";
+                if (order.status === "cancel_requested") {
+                  order.status = "paid";
+                } else {
+                  order.status = "delivered";
+                }
                 await order.save();
 
                 // Send status update email
@@ -1134,7 +1204,7 @@ const startAdmin = async () => {
                 return {
                   record: updatedRecord.toJSON(currentAdmin),
                   notice: {
-                    message: `Order #${order.razorpayOrderId} return/exchange request rejected and order closed.`,
+                    message: `Request for Order #${order.razorpayOrderId} rejected. Status set to "${order.status}".`,
                     type: "info"
                   },
                   redirectUrl: h.recordActionUrl({ resourceId: resource.id(), recordId: orderId, actionName: "show" })

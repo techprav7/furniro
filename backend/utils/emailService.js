@@ -397,7 +397,26 @@ const sendOrderStatusNotification = async (order, previousStatus = null) => {
         });
         break;
 
-      // ❌ 6. Cancelled
+      // ⏳ 6a. Cancellation Requested (Under Review)
+      case "cancel_requested":
+        subject = `Cancellation Request Received for Order [#${targetOrder.razorpayOrderId}] ⏳`;
+        emailHtml = buildFurniroEmailHtml({
+          title: "Cancellation Request Received",
+          badgeText: "Cancellation In Review ⏳",
+          badgeColor: "#d97706",
+          introTitle: `Cancellation Request Received, ${recipientName}`,
+          introBody: "We have received your request to cancel this order. Our team is reviewing the request and will process your refund upon approval.",
+          highlightBoxHtml: `
+            <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 14px 18px; color: #92400e;">
+              <p style="margin: 0; font-size: 13px;"><strong>Cancellation Reason:</strong> ${targetOrder.cancellationReason || "Customer cancellation request"}</p>
+              <p style="margin: 4px 0 0 0; font-size: 12px; color: #b45309;">Your refund of ${formatCurrency(targetOrder.totalAmount)} will be initiated as soon as our administrator reviews and approves this cancellation.</p>
+            </div>
+          `,
+          order: targetOrder,
+        });
+        break;
+
+      // ❌ 6b. Cancelled & Refunded
       case "cancelled":
         subject = `Order Cancellation Notice: [#${targetOrder.razorpayOrderId}] ❌`;
         emailHtml = buildFurniroEmailHtml({

@@ -183,6 +183,14 @@ const OrderHistory = () => {
                            <tr className="bg-gray-50/70 border-b border-gray-200">
                              <td colSpan={7} className="p-6">
                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
+                                 {/* ⚡ Cancellation Requested Review Banner */}
+                                 {order.status.toLowerCase() === "cancel_requested" && (
+                                   <div className="col-span-1 md:col-span-3 bg-amber-50 border-l-4 border-amber-500 text-amber-900 p-4 rounded mb-2 shadow-xxs">
+                                     <p className="font-semibold text-sm">Cancellation Request Under Review</p>
+                                     <p className="text-xxs text-amber-700 mt-1">Our team is reviewing your cancellation request. Once approved by admin, your refund will be processed immediately.</p>
+                                   </div>
+                                 )}
+
                                  {/* ⚡ Cancellation Refund Banner */}
                                  {order.status.toLowerCase() === "cancelled" && (
                                    <div className="col-span-1 md:col-span-3 bg-orange-50 border-l-4 border-orange-500 text-orange-900 p-4 rounded mb-2 shadow-xxs">

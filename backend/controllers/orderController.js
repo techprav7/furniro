@@ -386,88 +386,39 @@ exports.cancelOrder = async (req, res) => {
       });
     }
 
-    const originalStatus = order.status;
+    const { sendOrderStatusNotification } = require("../utils/emailService");
 
-    order.status = "cancelled";
-    order.cancellationReason = reason || "Cancelled by customer";
+    // Case 1: Unpaid pending order -> cancel immediately without refund
+    if (order.status === "pending") {
+      order.status = "cancelled";
+      order.cancellationReason = reason || "Cancelled before payment";
+      await order.save();
+
+      // Restore inventory
+      for (const item of order.items) {
+        if (item.productId) {
+          await Product.findByIdAndUpdate(item.productId, { $inc: { stock: item.quantity } });
+        }
+      }
+
+      sendOrderStatusNotification(order).catch((err) => console.error("❌ Failed to send cancel order email:", err));
+
+      return res.json({ success: true, message: "Order cancelled successfully", order });
+    }
+
+    // Case 2: Paid order -> set to cancel_requested (Awaiting Admin Review & Refund Approval)
+    order.status = "cancel_requested";
+    order.cancellationReason = reason || "Customer requested order cancellation";
     await order.save();
 
-    // Restore stock for cancelled orders
-    for (const item of order.items) {
-      await Product.findByIdAndUpdate(
-        item.productId,
-        { $inc: { stock: item.quantity } }
-      );
-    }
+    // Notify customer that cancellation request is received and under review
+    sendOrderStatusNotification(order).catch((err) => console.error("❌ Failed to send cancel request email:", err));
 
-    // Trigger refund if order was paid
-    if (originalStatus === "paid") {
-      const razorpay = getRazorpayInstance();
-      if (razorpay && order.razorpayPaymentId) {
-        try {
-          const refund = await razorpay.payments.refund(order.razorpayPaymentId, {
-            amount: order.totalAmount * 100, // in paise
-            notes: { reason: reason || "Cancelled by customer" }
-          });
-          console.log("✅ Razorpay refund initiated:", refund.id);
-          
-          order.refundId = refund.id;
-          order.refundAmount = order.totalAmount;
-          await order.save();
-
-          await Payment.findOneAndUpdate(
-            { razorpayOrderId: order.razorpayOrderId },
-            { 
-              $set: { 
-                status: "refunded",
-                refundId: refund.id,
-                refundAmount: order.totalAmount
-              } 
-            }
-          );
-        } catch (rzpErr) {
-          console.error("❌ Razorpay refund failed:", rzpErr);
-          const mockRefundId = `mock_refund_${Date.now()}`;
-          order.refundId = mockRefundId;
-          order.refundAmount = order.totalAmount;
-          await order.save();
-
-          await Payment.findOneAndUpdate(
-            { razorpayOrderId: order.razorpayOrderId },
-            { 
-              $set: { 
-                status: "refunded",
-                refundId: mockRefundId,
-                refundAmount: order.totalAmount
-              } 
-            }
-          );
-        }
-      } else {
-        // Mock refund in sandbox/mock mode
-        const mockRefundId = `mock_refund_${Date.now()}`;
-        order.refundId = mockRefundId;
-        order.refundAmount = order.totalAmount;
-        await order.save();
-
-        await Payment.findOneAndUpdate(
-          { razorpayOrderId: order.razorpayOrderId },
-          { 
-            $set: { 
-              status: "refunded",
-              refundId: mockRefundId,
-              refundAmount: order.totalAmount
-            } 
-          }
-        );
-      }
-    }
-
-    // Trigger order cancellation & refund notification email
-    const { sendOrderStatusNotification } = require("../utils/emailService");
-    sendOrderStatusNotification(order).catch((err) => console.error("❌ Failed to send cancel order email:", err));
-
-    res.json({ success: true, message: "Order cancelled successfully", order });
+    res.json({
+      success: true,
+      message: "Cancellation request submitted. Our team will review and approve your refund shortly.",
+      order
+    });
   } catch (error) {
     console.error("CancelOrder error:", error);
     res.status(500).json({ message: "Server error" });

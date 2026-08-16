@@ -141,6 +141,7 @@ const OrderDetail = () => {
       shipped: "bg-indigo-100 text-indigo-800 border-indigo-200",
       out_for_delivery: "bg-purple-100 text-purple-800 border-purple-200",
       delivered: "bg-green-100 text-green-800 border-green-200",
+      cancel_requested: "bg-amber-100 text-amber-800 border-amber-200",
       cancelled: "bg-gray-100 text-gray-800 border-gray-200",
       return_requested: "bg-purple-100 text-purple-800 border-purple-200",
       returned: "bg-rose-100 text-rose-800 border-rose-200",
@@ -160,6 +161,7 @@ const OrderDetail = () => {
       shipped: "SHIPPED",
       out_for_delivery: "OUT FOR DELIVERY",
       delivered: "DELIVERED",
+      cancel_requested: "CANCELLATION REQUESTED",
       cancelled: "CANCELLED",
       return_requested: "RETURN REQUESTED",
       returned: "RETURNED",
@@ -368,6 +370,23 @@ const OrderDetail = () => {
               <div className="mt-4 pt-3 border-t border-gray-100 text-xs text-gray-600">
                 <strong>Delivery Note:</strong> {order.deliveryNotes}
               </div>
+            )}
+          </div>
+        )}
+
+        {/* Cancellation Requested Notice */}
+        {order.status === "cancel_requested" && (
+          <div className="bg-amber-50 border-l-4 border-amber-500 text-amber-950 p-4 mb-6 rounded-lg shadow-sm">
+            <span className="font-semibold block text-sm flex items-center gap-1">
+              <AlertTriangle className="w-4 h-4 text-amber-500" /> Cancellation Request Under Review
+            </span>
+            <p className="text-sm mt-1">
+              Your cancellation request is currently under review by our admin team. Once approved, your refund will be initiated immediately.
+            </p>
+            {order.cancellationReason && (
+              <p className="text-xs italic text-amber-800 mt-2">
+                Reason: "{order.cancellationReason}"
+              </p>
             )}
           </div>
         )}
