@@ -35,13 +35,25 @@ const AppRoutes = () => {
     <Routes>
       {/* Auth pages — no layout wrapper (full-screen backgrounds) */}
       <Route
+        path="/login/*"
+        element={isSignedIn ? <Navigate to="/" replace /> : <Login />}
+      />
+      <Route
         path="/login"
         element={isSignedIn ? <Navigate to="/" replace /> : <Login />}
+      />
+      <Route
+        path="/register/*"
+        element={isSignedIn ? <Navigate to="/" replace /> : <Register />}
       />
       <Route
         path="/register"
         element={isSignedIn ? <Navigate to="/" replace /> : <Register />}
       />
+      <Route path="/sign-in/*" element={<Navigate to="/login" replace />} />
+      <Route path="/signin" element={<Navigate to="/login" replace />} />
+      <Route path="/sign-up/*" element={<Navigate to="/register" replace />} />
+      <Route path="/signup" element={<Navigate to="/register" replace />} />
 
       {/* Main app — requires authentication */}
       <Route path="/" element={

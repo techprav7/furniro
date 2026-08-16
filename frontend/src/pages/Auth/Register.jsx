@@ -80,8 +80,11 @@ const Register = () => {
         {/* Clerk Sign-Up Component */}
         <div className="w-full max-w-md flex justify-center">
           <SignUp 
+            routing="path"
+            path="/register"
             signInUrl="/login" 
             fallbackRedirectUrl="/" 
+            signInFallbackRedirectUrl="/"
             appearance={{
               variables: {
                 colorPrimary: "#B88E2F",

@@ -378,7 +378,7 @@ function NavbarComponent() {
                     className="btn btn-outline-dark px-4 py-1.5 rounded-full font-semibold text-sm transition-all"
                     style={{ whiteSpace: "nowrap" }}
                   >
-                    Sign In
+                    Login
                   </Link>
                   <Link
                     to="/register"
@@ -390,11 +390,11 @@ function NavbarComponent() {
                       whiteSpace: "nowrap",
                     }}
                   >
-                    Sign Up
+                    Register
                   </Link>
                 </SignedOut>
                 <SignedIn>
-                  <UserButton afterSignOutUrl="/login">
+                  <UserButton afterSignOutUrl="/login" fallbackRedirectUrl="/login">
                     <UserButton.MenuItems>
                       <UserButton.Link
                         label="My Orders"
