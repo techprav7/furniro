@@ -459,6 +459,10 @@ exports.cancelOrder = async (req, res) => {
       }
     }
 
+    // Trigger order cancellation & refund notification email
+    const { sendOrderStatusNotification } = require("../utils/emailService");
+    sendOrderStatusNotification(order).catch((err) => console.error("❌ Failed to send cancel order email:", err));
+
     res.json({ success: true, message: "Order cancelled successfully", order });
   } catch (error) {
     console.error("CancelOrder error:", error);

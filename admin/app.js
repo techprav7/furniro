@@ -55,6 +55,15 @@ try {
   process.exit(1);
 }
 
+// ─── Load Email Service ─────────────────────────────────────────────────────
+let sendOrderStatusNotification = async () => {};
+try {
+  const emailService = require("../backend/utils/emailService.js");
+  sendOrderStatusNotification = emailService.sendOrderStatusNotification;
+} catch (err) {
+  console.warn("⚠️ Warning: emailService could not be loaded in admin:", err.message);
+}
+
 // ─── Register AdminJS Mongoose Adapter ──────────────────────────────────────
 AdminJS.registerAdapter(AdminJSMongoose);
 
@@ -493,6 +502,25 @@ const startAdmin = async () => {
             deliveryNotes: { type: "textarea" },
           },
           actions: {
+            // 📝 Hook: Send email on manual record edit (if status changed)
+            edit: {
+              after: async (response, request, context) => {
+                try {
+                  const record = response.record;
+                  if (record && record.params) {
+                    const orderId = record.params._id || record.id;
+                    const order = await Order.findById(orderId);
+                    if (order) {
+                      sendOrderStatusNotification(order).catch(err => console.error("Email notification error on edit:", err));
+                    }
+                  }
+                } catch (e) {
+                  console.error("Order edit after-hook error:", e);
+                }
+                return response;
+              }
+            },
+
             // 📥 Export Orders to CSV Action
             exportOrdersCsv: {
               actionType: "resource",
@@ -546,6 +574,9 @@ const startAdmin = async () => {
 
                 await order.save();
 
+                // Send cancellation email notification
+                sendOrderStatusNotification(order).catch(err => console.error("Cancel email error:", err));
+
                 // Restore stock for all products in order
                 if (order.items && order.items.length > 0) {
                   for (const item of order.items) {
@@ -561,7 +592,7 @@ const startAdmin = async () => {
                 return {
                   record: updatedRecord.toJSON(currentAdmin),
                   notice: {
-                    message: `Order #${order.razorpayOrderId} cancelled, stock restored, and refund processed.`,
+                    message: `Order #${order.razorpayOrderId} cancelled, stock restored, and customer notified.`,
                     type: "success"
                   },
                   redirectUrl: h.recordActionUrl({ resourceId: resource.id(), recordId: orderId, actionName: "show" })
@@ -603,11 +634,14 @@ const startAdmin = async () => {
                   }
                 );
 
+                // Send refund confirmation email
+                sendOrderStatusNotification(order).catch(err => console.error("Refund email error:", err));
+
                 const updatedRecord = await resource.findOne(orderId);
                 return {
                   record: updatedRecord.toJSON(currentAdmin),
                   notice: {
-                    message: `Refund of ₹${order.totalAmount} issued for Order #${order.razorpayOrderId}.`,
+                    message: `Refund of ₹${order.totalAmount} issued for Order #${order.razorpayOrderId} and customer notified.`,
                     type: "success"
                   },
                   redirectUrl: h.recordActionUrl({ resourceId: resource.id(), recordId: orderId, actionName: "show" })
@@ -635,11 +669,14 @@ const startAdmin = async () => {
                 order.status = "replaced";
                 await order.save();
 
+                // Send replacement confirmation email
+                sendOrderStatusNotification(order).catch(err => console.error("Replace email error:", err));
+
                 const updatedRecord = await resource.findOne(orderId);
                 return {
                   record: updatedRecord.toJSON(currentAdmin),
                   notice: {
-                    message: `Order #${order.razorpayOrderId} marked as Replaced.`,
+                    message: `Order #${order.razorpayOrderId} marked as Replaced and customer notified.`,
                     type: "success"
                   },
                   redirectUrl: h.recordActionUrl({ resourceId: resource.id(), recordId: orderId, actionName: "show" })
@@ -666,11 +703,14 @@ const startAdmin = async () => {
                 order.status = "dispatched";
                 await order.save();
 
+                // Send dispatch notification email
+                sendOrderStatusNotification(order).catch(err => console.error("Dispatch email error:", err));
+
                 const updatedRecord = await resource.findOne(orderId);
                 return {
                   record: updatedRecord.toJSON(currentAdmin),
                   notice: {
-                    message: `Order #${order.razorpayOrderId} marked as Dispatched.`,
+                    message: `Order #${order.razorpayOrderId} marked as Dispatched and customer notified!`,
                     type: "success"
                   },
                   redirectUrl: h.recordActionUrl({ resourceId: resource.id(), recordId: orderId, actionName: "show" })
@@ -697,11 +737,14 @@ const startAdmin = async () => {
                 order.status = "shipped";
                 await order.save();
 
+                // Send shipping & tracking notification email
+                sendOrderStatusNotification(order).catch(err => console.error("Shipped email error:", err));
+
                 const updatedRecord = await resource.findOne(orderId);
                 return {
                   record: updatedRecord.toJSON(currentAdmin),
                   notice: {
-                    message: `Order #${order.razorpayOrderId} marked as Shipped.`,
+                    message: `Order #${order.razorpayOrderId} marked as Shipped and tracking email sent!`,
                     type: "success"
                   },
                   redirectUrl: h.recordActionUrl({ resourceId: resource.id(), recordId: orderId, actionName: "show" })
@@ -728,11 +771,14 @@ const startAdmin = async () => {
                 order.status = "out_for_delivery";
                 await order.save();
 
+                // Send Out for Delivery email
+                sendOrderStatusNotification(order).catch(err => console.error("Out for delivery email error:", err));
+
                 const updatedRecord = await resource.findOne(orderId);
                 return {
                   record: updatedRecord.toJSON(currentAdmin),
                   notice: {
-                    message: `Order #${order.razorpayOrderId} marked as Out for Delivery.`,
+                    message: `Order #${order.razorpayOrderId} marked as Out for Delivery and customer notified!`,
                     type: "success"
                   },
                   redirectUrl: h.recordActionUrl({ resourceId: resource.id(), recordId: orderId, actionName: "show" })
@@ -759,11 +805,14 @@ const startAdmin = async () => {
                 order.status = "delivered";
                 await order.save();
 
+                // Send Delivery confirmation email
+                sendOrderStatusNotification(order).catch(err => console.error("Delivered email error:", err));
+
                 const updatedRecord = await resource.findOne(orderId);
                 return {
                   record: updatedRecord.toJSON(currentAdmin),
                   notice: {
-                    message: `Order #${order.razorpayOrderId} marked as Delivered!`,
+                    message: `Order #${order.razorpayOrderId} marked as Delivered and confirmation email sent!`,
                     type: "success"
                   },
                   redirectUrl: h.recordActionUrl({ resourceId: resource.id(), recordId: orderId, actionName: "show" })
