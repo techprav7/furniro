@@ -502,16 +502,19 @@ const startAdmin = async () => {
             deliveryNotes: { type: "textarea" },
           },
           actions: {
-            // 📝 Hook: Send email on manual record edit (if status changed)
+            // 📝 Hook: Send email on manual record edit (when form saved via POST)
             edit: {
               after: async (response, request, context) => {
                 try {
-                  const record = response.record;
-                  const orderId = record?.params?._id || record?.params?.id || (typeof record?.id === "function" ? record.id() : record?.id) || context.record?.id();
-                  if (orderId) {
-                    const order = await Order.findById(orderId);
-                    if (order) {
-                      await sendOrderStatusNotification(order).catch(err => console.error("Email notification error on edit:", err));
+                  if (request && request.method === "post") {
+                    const record = response.record;
+                    const orderId = record?.params?._id || record?.params?.id || (typeof record?.id === "function" ? record.id() : record?.id) || context.record?.id();
+                    if (orderId) {
+                      const order = await Order.findById(orderId);
+                      if (order) {
+                        console.log(`📝 [ADMIN PANEL EDIT] Order #${order.razorpayOrderId} updated to "${order.status}". Dispatching customer notification...`);
+                        await sendOrderStatusNotification(order).catch(err => console.error("❌ Email notification error on edit:", err));
+                      }
                     }
                   }
                 } catch (e) {
