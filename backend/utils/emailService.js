@@ -1,13 +1,129 @@
 const { Resend } = require("resend");
+const nodemailer = require("nodemailer");
 
-// Initialize Resend with key from environment variables
+// ─── Email Transporter Providers ────────────────────────────────────────────
+
+// 1. Resend Instance
 const getResendInstance = () => {
   const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    console.warn("⚠️ RESEND_API_KEY is missing. Emails will be logged to the console instead of being sent.");
-    return null;
-  }
+  if (!apiKey) return null;
   return new Resend(apiKey);
+};
+
+// 2. Nodemailer SMTP Transporter
+const getSmtpTransporter = () => {
+  const host = process.env.SMTP_HOST;
+  const user = process.env.SMTP_USER || process.env.GMAIL_USER;
+  const pass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD;
+
+  if (user && pass) {
+    if (host) {
+      return nodemailer.createTransport({
+        host,
+        port: parseInt(process.env.SMTP_PORT || "587", 10),
+        secure: process.env.SMTP_SECURE === "true" || process.env.SMTP_PORT === "465",
+        auth: { user, pass },
+      });
+    } else {
+      // Default to Gmail service if host not specified
+      return nodemailer.createTransport({
+        service: "gmail",
+        auth: { user, pass },
+      });
+    }
+  }
+  return null;
+};
+
+/**
+ * Universal sender that handles Resend with SMTP fallback
+ */
+const sendRawEmail = async ({ to, subject, html, orderId, status }) => {
+  const fromEmail = process.env.RESEND_FROM_EMAIL || process.env.SMTP_FROM || "Furniro <onboarding@resend.dev>";
+  const resend = getResendInstance();
+  const smtp = getSmtpTransporter();
+
+  // Try Resend first if available
+  if (resend) {
+    try {
+      console.log(`📡 [EMAIL DISPATCH] Sending [${status.toUpperCase()}] email via Resend to ${to}...`);
+      const { data, error } = await resend.emails.send({
+        from: fromEmail,
+        to,
+        subject,
+        html,
+      });
+
+      if (error) {
+        console.warn(`⚠️ Resend API returned error for order #${orderId} (${status}):`, error.message || error);
+        
+        // If Resend failed due to sandbox domain (403), attempt SMTP fallback if configured
+        if (smtp) {
+          console.log(`🔄 Attempting SMTP fallback for ${to}...`);
+          const smtpInfo = await smtp.sendMail({
+            from: fromEmail,
+            to,
+            subject,
+            html,
+          });
+          console.log(`✅ [${status.toUpperCase()}] email sent successfully via SMTP to ${to}. MessageId: ${smtpInfo.messageId}`);
+          return { success: true, provider: "smtp", id: smtpInfo.messageId };
+        }
+
+        if (error.statusCode === 403 || String(error.message).includes("testing emails")) {
+          console.error(`\n=================== RESEND SANDBOX RESTRICTION ===================`);
+          console.error(`❌ Resend sandbox 'onboarding@resend.dev' only allows sending to the account owner email.`);
+          console.error(`ℹ️ Recipient was: ${to}`);
+          console.error(`💡 Solutions to send to ANY logged-in user:`);
+          console.error(`   1. Add & verify your custom domain at https://resend.com/domains`);
+          console.error(`   2. OR configure SMTP credentials in .env (SMTP_USER/SMTP_PASS or GMAIL_USER/GMAIL_APP_PASSWORD)`);
+          console.error(`==================================================================\n`);
+        }
+        return { success: false, error };
+      }
+
+      console.log(`✅ [${status.toUpperCase()}] email sent successfully via Resend to ${to}. Resend ID: ${data.id}`);
+      return { success: true, provider: "resend", id: data.id };
+    } catch (err) {
+      console.error(`❌ Resend transport exception for order #${orderId}:`, err.message);
+      if (smtp) {
+        try {
+          console.log(`🔄 Falling back to SMTP for ${to}...`);
+          const smtpInfo = await smtp.sendMail({ from: fromEmail, to, subject, html });
+          console.log(`✅ [${status.toUpperCase()}] email sent successfully via SMTP fallback to ${to}. MessageId: ${smtpInfo.messageId}`);
+          return { success: true, provider: "smtp", id: smtpInfo.messageId };
+        } catch (smtpErr) {
+          console.error(`❌ SMTP fallback also failed:`, smtpErr.message);
+        }
+      }
+    }
+  } else if (smtp) {
+    // If only SMTP is configured
+    try {
+      console.log(`📡 [EMAIL DISPATCH] Sending [${status.toUpperCase()}] email via SMTP to ${to}...`);
+      const smtpInfo = await smtp.sendMail({
+        from: fromEmail,
+        to,
+        subject,
+        html,
+      });
+      console.log(`✅ [${status.toUpperCase()}] email sent successfully via SMTP to ${to}. MessageId: ${smtpInfo.messageId}`);
+      return { success: true, provider: "smtp", id: smtpInfo.messageId };
+    } catch (smtpErr) {
+      console.error(`❌ SMTP transport failed for order #${orderId}:`, smtpErr.message);
+      return { success: false, error: smtpErr };
+    }
+  } else {
+    // No email provider configured — Log to console for dev
+    console.log(`\n=================== DEV EMAIL LOG [${status.toUpperCase()}] ===================`);
+    console.log(`TO: ${to}`);
+    console.log(`FROM: ${fromEmail}`);
+    console.log(`SUBJECT: ${subject}`);
+    console.log(`ORDER ID: ${orderId}`);
+    console.log(`STATUS: ${status}`);
+    console.log(`=========================================================================\n`);
+    return { success: true, provider: "dev_log" };
+  }
 };
 
 /**
@@ -199,17 +315,52 @@ const buildFurniroEmailHtml = ({ title, badgeText, badgeColor = "#B88E2F", intro
  */
 const sendOrderStatusNotification = async (order, previousStatus = null) => {
   try {
-    if (!order || !order.shippingAddress || !order.shippingAddress.email) {
-      console.warn("⚠️ Cannot send status email: Missing recipient email or order details.");
+    if (!order) {
+      console.warn("⚠️ Cannot send status email: No order object passed.");
       return;
     }
 
-    const recipientEmail = order.shippingAddress.email;
-    const recipientName = `${order.shippingAddress.firstName || ""} ${order.shippingAddress.lastName || ""}`.trim() || "Customer";
-    const fromEmail = process.env.RESEND_FROM_EMAIL || "Furniro <onboarding@resend.dev>";
-    
+    // Resolve order document if order is an ID or partial object
+    let targetOrder = order;
+    if (typeof order === "string" || (order && !order.shippingAddress && (order._id || order.id))) {
+      try {
+        const OrderModel = require("../models/Order.js");
+        const found = await OrderModel.findById(order._id || order.id || order);
+        if (found) targetOrder = found;
+      } catch (e) {
+        // ignore resolution error and proceed with provided object
+      }
+    }
+
+    // Resolve recipient email and name
+    let recipientEmail = targetOrder?.shippingAddress?.email || targetOrder?.customerEmail || targetOrder?.email;
+    let recipientName = `${targetOrder?.shippingAddress?.firstName || ""} ${targetOrder?.shippingAddress?.lastName || ""}`.trim();
+
+    // Fallback: If email is missing in shippingAddress, resolve from User model using clerkUserId
+    if (!recipientEmail && targetOrder?.clerkUserId) {
+      try {
+        const UserModel = require("../models/User.js");
+        const user = await UserModel.findOne({ clerkId: targetOrder.clerkUserId });
+        if (user) {
+          recipientEmail = user.email;
+          if (!recipientName) recipientName = user.name;
+        }
+      } catch (e) {
+        // ignore user resolution error
+      }
+    }
+
+    if (!recipientEmail) {
+      console.warn(`⚠️ Cannot send status email for order #${targetOrder?.razorpayOrderId || targetOrder?._id}: Missing recipient email.`);
+      return;
+    }
+
+    if (!recipientName) {
+      recipientName = "Customer";
+    }
+
     // Normalize status string
-    let rawStatus = String(order.status || "").toLowerCase().trim();
+    let rawStatus = String(targetOrder.status || "").toLowerCase().trim();
     if (rawStatus === "refund") rawStatus = "refunded";
     if (rawStatus === "replace") rawStatus = "replaced";
     if (rawStatus === "exchange") rawStatus = "exchange_requested";
@@ -222,7 +373,7 @@ const sendOrderStatusNotification = async (order, previousStatus = null) => {
     switch (status) {
       // 🟢 1. Paid / Order Placed
       case "paid":
-        subject = `Your Furniro Order Confirmation [#${order.razorpayOrderId}]`;
+        subject = `Your Furniro Order Confirmation [#${targetOrder.razorpayOrderId}]`;
         emailHtml = buildFurniroEmailHtml({
           title: "Order Confirmation",
           badgeText: "Order Confirmed",
@@ -231,17 +382,17 @@ const sendOrderStatusNotification = async (order, previousStatus = null) => {
           introBody: "We have received your payment and our team is preparing your handcrafted furniture items for warehouse dispatch.",
           highlightBoxHtml: `
             <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 14px 18px; color: #166534;">
-              <p style="margin: 0; font-size: 14px;"><strong>Estimated Delivery Window:</strong> ${getDeliveryRangeString(order.createdAt, 5, 7)}</p>
+              <p style="margin: 0; font-size: 14px;"><strong>Estimated Delivery Window:</strong> ${getDeliveryRangeString(targetOrder.createdAt, 5, 7)}</p>
               <p style="margin: 4px 0 0 0; font-size: 12px; color: #15803d;">Standard insured white-glove furniture delivery.</p>
             </div>
           `,
-          order,
+          order: targetOrder,
         });
         break;
 
       // 📦 2. Dispatched
       case "dispatched":
-        subject = `Order Dispatched: Your Furniro Order [#${order.razorpayOrderId}] Is Ready 📦`;
+        subject = `Order Dispatched: Your Furniro Order [#${targetOrder.razorpayOrderId}] Is Ready 📦`;
         emailHtml = buildFurniroEmailHtml({
           title: "Order Dispatched",
           badgeText: "Warehouse Dispatched 📦",
@@ -254,13 +405,13 @@ const sendOrderStatusNotification = async (order, previousStatus = null) => {
               <p style="margin: 4px 0 0 0; font-size: 12px; color: #2563eb;">You will receive live tracking information as soon as transit begins.</p>
             </div>
           `,
-          order,
+          order: targetOrder,
         });
         break;
 
       // 🚚 3. Shipped / In Transit
       case "shipped":
-        subject = `Your Furniro Order [#${order.razorpayOrderId}] Has Shipped! 🚚`;
+        subject = `Your Furniro Order [#${targetOrder.razorpayOrderId}] Has Shipped! 🚚`;
         emailHtml = buildFurniroEmailHtml({
           title: "Order Shipped",
           badgeText: "Shipped & In Transit 🚚",
@@ -270,18 +421,18 @@ const sendOrderStatusNotification = async (order, previousStatus = null) => {
           highlightBoxHtml: `
             <div style="background-color: #faf5ff; border: 1px solid #e9d5ff; border-radius: 6px; padding: 16px; color: #6b21a8;">
               <h4 style="margin: 0 0 8px 0; font-size: 14px; text-transform: uppercase;">Tracking Details</h4>
-              <p style="margin: 0 0 4px 0; font-size: 13px;"><strong>Courier Partner:</strong> ${order.courierPartner || "Furniro Express Freight"}</p>
-              <p style="margin: 0 0 4px 0; font-size: 13px;"><strong>Tracking Number:</strong> <span style="font-family: monospace; font-weight: 700; color: #7e22ce;">${order.trackingNumber || "Assigned on Transit"}</span></p>
-              <p style="margin: 0; font-size: 13px;"><strong>Estimated Delivery:</strong> ${getDeliveryRangeString(order.createdAt, 2, 4)}</p>
+              <p style="margin: 0 0 4px 0; font-size: 13px;"><strong>Courier Partner:</strong> ${targetOrder.courierPartner || "Furniro Express Freight"}</p>
+              <p style="margin: 0 0 4px 0; font-size: 13px;"><strong>Tracking Number:</strong> <span style="font-family: monospace; font-weight: 700; color: #7e22ce;">${targetOrder.trackingNumber || "Assigned on Transit"}</span></p>
+              <p style="margin: 0; font-size: 13px;"><strong>Estimated Delivery:</strong> ${getDeliveryRangeString(targetOrder.createdAt, 2, 4)}</p>
             </div>
           `,
-          order,
+          order: targetOrder,
         });
         break;
 
       // 🛵 4. Out for Delivery
       case "out_for_delivery":
-        subject = `Out for Delivery Today: Your Furniro Order [#${order.razorpayOrderId}] 🛵`;
+        subject = `Out for Delivery Today: Your Furniro Order [#${targetOrder.razorpayOrderId}] 🛵`;
         emailHtml = buildFurniroEmailHtml({
           title: "Out for Delivery",
           badgeText: "Out for Delivery Today 🛵",
@@ -290,17 +441,17 @@ const sendOrderStatusNotification = async (order, previousStatus = null) => {
           introBody: "Our local delivery team has loaded your order and will arrive at your address today.",
           highlightBoxHtml: `
             <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 14px 18px; color: #92400e;">
-              <p style="margin: 0; font-size: 14px;"><strong>Delivery Destination:</strong> ${order.shippingAddress.streetAddress}, ${order.shippingAddress.townCity}</p>
-              <p style="margin: 4px 0 0 0; font-size: 12px; color: #b45309;">Please ensure an authorized person is available at 📞 ${order.shippingAddress.phone} to inspect and receive the package.</p>
+              <p style="margin: 0; font-size: 14px;"><strong>Delivery Destination:</strong> ${targetOrder.shippingAddress?.streetAddress || ""}, ${targetOrder.shippingAddress?.townCity || ""}</p>
+              <p style="margin: 4px 0 0 0; font-size: 12px; color: #b45309;">Please ensure an authorized person is available at 📞 ${targetOrder.shippingAddress?.phone || ""} to inspect and receive the package.</p>
             </div>
           `,
-          order,
+          order: targetOrder,
         });
         break;
 
       // ✅ 5. Delivered
       case "delivered":
-        subject = `Delivered: Your Furniro Order [#${order.razorpayOrderId}] Has Arrived! ✅`;
+        subject = `Delivered: Your Furniro Order [#${targetOrder.razorpayOrderId}] Has Arrived! ✅`;
         emailHtml = buildFurniroEmailHtml({
           title: "Order Delivered",
           badgeText: "Delivered Successfully ✅",
@@ -313,13 +464,13 @@ const sendOrderStatusNotification = async (order, previousStatus = null) => {
               <p style="margin: 4px 0 0 0; font-size: 12px; color: #15803d;">If you need assistance with assembly, maintenance, or returns, our support team is always here for you.</p>
             </div>
           `,
-          order,
+          order: targetOrder,
         });
         break;
 
       // ❌ 6. Cancelled
       case "cancelled":
-        subject = `Order Cancellation Notice: [#${order.razorpayOrderId}] ❌`;
+        subject = `Order Cancellation Notice: [#${targetOrder.razorpayOrderId}] ❌`;
         emailHtml = buildFurniroEmailHtml({
           title: "Order Cancelled",
           badgeText: "Order Cancelled ❌",
@@ -328,36 +479,36 @@ const sendOrderStatusNotification = async (order, previousStatus = null) => {
           introBody: "Your order has been cancelled as requested.",
           highlightBoxHtml: `
             <div style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 14px 18px; color: #991b1b;">
-              <p style="margin: 0; font-size: 13px;"><strong>Cancellation Reason:</strong> ${order.cancellationReason || "Cancelled by admin/customer support"}</p>
-              ${order.refundId ? `<p style="margin: 6px 0 0 0; font-size: 13px;"><strong>Refund Status:</strong> Full refund of ${formatCurrency(order.refundAmount || order.totalAmount)} initiated (Ref: <span style="font-family: monospace;">${order.refundId}</span>). Takes 3-5 business days.</p>` : ""}
+              <p style="margin: 0; font-size: 13px;"><strong>Cancellation Reason:</strong> ${targetOrder.cancellationReason || "Cancelled by admin/customer support"}</p>
+              ${targetOrder.refundId ? `<p style="margin: 6px 0 0 0; font-size: 13px;"><strong>Refund Status:</strong> Full refund of ${formatCurrency(targetOrder.refundAmount || targetOrder.totalAmount)} initiated (Ref: <span style="font-family: monospace;">${targetOrder.refundId}</span>). Takes 3-5 business days.</p>` : ""}
             </div>
           `,
-          order,
+          order: targetOrder,
         });
         break;
 
       // 💰 7. Refunded
       case "refunded":
-        subject = `Refund Processed: ${formatCurrency(order.refundAmount || order.totalAmount)} for Order [#${order.razorpayOrderId}] 💰`;
+        subject = `Refund Processed: ${formatCurrency(targetOrder.refundAmount || targetOrder.totalAmount)} for Order [#${targetOrder.razorpayOrderId}] 💰`;
         emailHtml = buildFurniroEmailHtml({
           title: "Refund Processed",
           badgeText: "Refund Issued 💰",
           badgeColor: "#8e44ad",
           introTitle: `Refund Confirmation, ${recipientName}`,
-          introBody: `A refund of <strong>${formatCurrency(order.refundAmount || order.totalAmount)}</strong> has been successfully processed for your order.`,
+          introBody: `A refund of <strong>${formatCurrency(targetOrder.refundAmount || targetOrder.totalAmount)}</strong> has been successfully processed for your order.`,
           highlightBoxHtml: `
             <div style="background-color: #faf5ff; border: 1px solid #e9d5ff; border-radius: 6px; padding: 14px 18px; color: #6b21a8;">
-              <p style="margin: 0; font-size: 13px;"><strong>Refund Transaction ID:</strong> <span style="font-family: monospace;">${order.refundId || "Razorpay Direct Refund"}</span></p>
+              <p style="margin: 0; font-size: 13px;"><strong>Refund Transaction ID:</strong> <span style="font-family: monospace;">${targetOrder.refundId || "Razorpay Direct Refund"}</span></p>
               <p style="margin: 4px 0 0 0; font-size: 12px; color: #7e22ce;">Funds will reflect in your original payment method (Bank/UPI/Card) within 3-5 banking days.</p>
             </div>
           `,
-          order,
+          order: targetOrder,
         });
         break;
 
       // 🔄 8. Return Requested
       case "return_requested":
-        subject = `Return Request Received for Order [#${order.razorpayOrderId}] 🔄`;
+        subject = `Return Request Received for Order [#${targetOrder.razorpayOrderId}] 🔄`;
         emailHtml = buildFurniroEmailHtml({
           title: "Return Request Received",
           badgeText: "Return In Review 🔄",
@@ -366,17 +517,17 @@ const sendOrderStatusNotification = async (order, previousStatus = null) => {
           introBody: "Your return request is currently being reviewed by our support team. We will schedule a courier pickup once approved.",
           highlightBoxHtml: `
             <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 14px 18px; color: #92400e;">
-              <p style="margin: 0; font-size: 13px;"><strong>Return Reason:</strong> ${order.returnReason || "Customer Return Request"}</p>
+              <p style="margin: 0; font-size: 13px;"><strong>Return Reason:</strong> ${targetOrder.returnReason || "Customer Return Request"}</p>
               <p style="margin: 4px 0 0 0; font-size: 12px; color: #b45309;">Please keep items in original packaging with tags intact for pickup verification.</p>
             </div>
           `,
-          order,
+          order: targetOrder,
         });
         break;
 
       // ↩️ 9. Returned (Item returned & accepted)
       case "returned":
-        subject = `Return Completed: Order [#${order.razorpayOrderId}] ↩️`;
+        subject = `Return Completed: Order [#${targetOrder.razorpayOrderId}] ↩️`;
         emailHtml = buildFurniroEmailHtml({
           title: "Return Completed",
           badgeText: "Item Returned ↩️",
@@ -389,13 +540,13 @@ const sendOrderStatusNotification = async (order, previousStatus = null) => {
               <p style="margin: 4px 0 0 0; font-size: 12px; color: #047857;">Any applicable refund or store credit will be issued promptly to your original payment method.</p>
             </div>
           `,
-          order,
+          order: targetOrder,
         });
         break;
 
       // 🔁 10. Exchange Requested
       case "exchange_requested":
-        subject = `Exchange Request Received for Order [#${order.razorpayOrderId}] 🔁`;
+        subject = `Exchange Request Received for Order [#${targetOrder.razorpayOrderId}] 🔁`;
         emailHtml = buildFurniroEmailHtml({
           title: "Exchange Requested",
           badgeText: "Exchange In Progress 🔁",
@@ -404,17 +555,17 @@ const sendOrderStatusNotification = async (order, previousStatus = null) => {
           introBody: "Your exchange/replacement request has been logged. Our logistics team will contact you to coordinate pickup and replacement shipment.",
           highlightBoxHtml: `
             <div style="background-color: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 14px 18px; color: #0369a1;">
-              <p style="margin: 0; font-size: 13px;"><strong>Exchange Details:</strong> ${order.exchangeReason || order.returnReason || "Customer Requested Exchange"}</p>
+              <p style="margin: 0; font-size: 13px;"><strong>Exchange Details:</strong> ${targetOrder.exchangeReason || targetOrder.returnReason || "Customer Requested Exchange"}</p>
               <p style="margin: 4px 0 0 0; font-size: 12px; color: #0284c7;">A replacement tracking number will be provided as soon as the package is dispatched.</p>
             </div>
           `,
-          order,
+          order: targetOrder,
         });
         break;
 
       // ✨ 11. Replaced
       case "replaced":
-        subject = `Replacement Confirmed: Your Furniro Order [#${order.razorpayOrderId}] ✨`;
+        subject = `Replacement Confirmed: Your Furniro Order [#${targetOrder.razorpayOrderId}] ✨`;
         emailHtml = buildFurniroEmailHtml({
           title: "Replacement Fulfilled",
           badgeText: "Replacement Confirmed ✨",
@@ -423,17 +574,17 @@ const sendOrderStatusNotification = async (order, previousStatus = null) => {
           introBody: "Your replacement item request has been approved and scheduled with our warehouse team.",
           highlightBoxHtml: `
             <div style="background-color: #f0fdfa; border: 1px solid #99f6e4; border-radius: 6px; padding: 14px 18px; color: #115e59;">
-              <p style="margin: 0; font-size: 13px;"><strong>Replacement Reason:</strong> ${order.exchangeReason || order.returnReason || "Customer Exchange"}</p>
+              <p style="margin: 0; font-size: 13px;"><strong>Replacement Reason:</strong> ${targetOrder.exchangeReason || targetOrder.returnReason || "Customer Exchange"}</p>
               <p style="margin: 4px 0 0 0; font-size: 12px; color: #0d9488;">New package will be dispatched with complimentary expedited courier.</p>
             </div>
           `,
-          order,
+          order: targetOrder,
         });
         break;
 
       // ⚠️ 12. Payment Failed
       case "failed":
-        subject = `Payment Notice for Order [#${order.razorpayOrderId}] ⚠️`;
+        subject = `Payment Notice for Order [#${targetOrder.razorpayOrderId}] ⚠️`;
         emailHtml = buildFurniroEmailHtml({
           title: "Payment Incomplete",
           badgeText: "Payment Failed ⚠️",
@@ -445,7 +596,7 @@ const sendOrderStatusNotification = async (order, previousStatus = null) => {
               <p style="margin: 0; font-size: 13px;">You can retry your payment or complete the checkout anytime from your Furniro Order History.</p>
             </div>
           `,
-          order,
+          order: targetOrder,
         });
         break;
 
@@ -454,30 +605,14 @@ const sendOrderStatusNotification = async (order, previousStatus = null) => {
         return;
     }
 
-    // Send via Resend or log to console
-    const resend = getResendInstance();
-    if (resend) {
-      console.log(`📡 Sending [${status.toUpperCase()}] email via Resend to ${recipientEmail}...`);
-      const { data, error } = await resend.emails.send({
-        from: fromEmail,
-        to: recipientEmail,
-        subject,
-        html: emailHtml,
-      });
-
-      if (error) {
-        console.error(`❌ Resend API error for order #${order.razorpayOrderId} (${status}):`, error);
-      } else {
-        console.log(`✅ [${status.toUpperCase()}] email sent successfully to ${recipientEmail}. Resend ID: ${data.id}`);
-      }
-    } else {
-      console.log(`\n=================== RESEND DEV EMAIL LOG [${status.toUpperCase()}] ===================`);
-      console.log(`TO: ${recipientEmail}`);
-      console.log(`SUBJECT: ${subject}`);
-      console.log(`ORDER ID: ${order.razorpayOrderId}`);
-      console.log(`STATUS: ${status}`);
-      console.log("=========================================================================\n");
-    }
+    // Send via universal sender
+    await sendRawEmail({
+      to: recipientEmail,
+      subject,
+      html: emailHtml,
+      orderId: targetOrder.razorpayOrderId || targetOrder._id,
+      status,
+    });
   } catch (err) {
     console.error(`❌ Unhandled exception sending order status email (${order?.status}):`, err);
   }
@@ -489,4 +624,5 @@ const sendOrderConfirmationEmail = (order) => sendOrderStatusNotification(order)
 module.exports = {
   sendOrderStatusNotification,
   sendOrderConfirmationEmail,
+  sendRawEmail,
 };
