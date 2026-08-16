@@ -507,8 +507,8 @@ const startAdmin = async () => {
               after: async (response, request, context) => {
                 try {
                   const record = response.record;
-                  if (record && record.params) {
-                    const orderId = record.params._id || record.id;
+                  const orderId = record?.params?._id || record?.params?.id || (typeof record?.id === "function" ? record.id() : record?.id) || context.record?.id();
+                  if (orderId) {
                     const order = await Order.findById(orderId);
                     if (order) {
                       sendOrderStatusNotification(order).catch(err => console.error("Email notification error on edit:", err));
@@ -840,6 +840,9 @@ const startAdmin = async () => {
                 order.status = "returned";
                 await order.save();
 
+                // Send return confirmation email
+                sendOrderStatusNotification(order).catch(err => console.error("Return email error:", err));
+
                 // Restore inventory
                 if (order.items && order.items.length > 0) {
                   for (const item of order.items) {
@@ -855,7 +858,7 @@ const startAdmin = async () => {
                 return {
                   record: updatedRecord.toJSON(currentAdmin),
                   notice: {
-                    message: `Order #${order.razorpayOrderId} marked as Returned and stock restored.`,
+                    message: `Order #${order.razorpayOrderId} marked as Returned, stock restored, and customer notified.`,
                     type: "success"
                   },
                   redirectUrl: h.recordActionUrl({ resourceId: resource.id(), recordId: orderId, actionName: "show" })

@@ -207,7 +207,14 @@ const sendOrderStatusNotification = async (order, previousStatus = null) => {
     const recipientEmail = order.shippingAddress.email;
     const recipientName = `${order.shippingAddress.firstName || ""} ${order.shippingAddress.lastName || ""}`.trim() || "Customer";
     const fromEmail = process.env.RESEND_FROM_EMAIL || "Furniro <onboarding@resend.dev>";
-    const status = order.status;
+    
+    // Normalize status string
+    let rawStatus = String(order.status || "").toLowerCase().trim();
+    if (rawStatus === "refund") rawStatus = "refunded";
+    if (rawStatus === "replace") rawStatus = "replaced";
+    if (rawStatus === "exchange") rawStatus = "exchange_requested";
+    if (rawStatus === "return") rawStatus = "returned";
+    const status = rawStatus;
 
     let subject = "";
     let emailHtml = "";
@@ -348,7 +355,64 @@ const sendOrderStatusNotification = async (order, previousStatus = null) => {
         });
         break;
 
-      // ✨ 8. Replaced / Exchange
+      // 🔄 8. Return Requested
+      case "return_requested":
+        subject = `Return Request Received for Order [#${order.razorpayOrderId}] 🔄`;
+        emailHtml = buildFurniroEmailHtml({
+          title: "Return Request Received",
+          badgeText: "Return In Review 🔄",
+          badgeColor: "#d97706",
+          introTitle: `We've received your return request, ${recipientName}`,
+          introBody: "Your return request is currently being reviewed by our support team. We will schedule a courier pickup once approved.",
+          highlightBoxHtml: `
+            <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 14px 18px; color: #92400e;">
+              <p style="margin: 0; font-size: 13px;"><strong>Return Reason:</strong> ${order.returnReason || "Customer Return Request"}</p>
+              <p style="margin: 4px 0 0 0; font-size: 12px; color: #b45309;">Please keep items in original packaging with tags intact for pickup verification.</p>
+            </div>
+          `,
+          order,
+        });
+        break;
+
+      // ↩️ 9. Returned (Item returned & accepted)
+      case "returned":
+        subject = `Return Completed: Order [#${order.razorpayOrderId}] ↩️`;
+        emailHtml = buildFurniroEmailHtml({
+          title: "Return Completed",
+          badgeText: "Item Returned ↩️",
+          badgeColor: "#059669",
+          introTitle: `Return Processed, ${recipientName}`,
+          introBody: "We have received and verified your returned furniture items at our fulfillment facility.",
+          highlightBoxHtml: `
+            <div style="background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; padding: 14px 18px; color: #065f46;">
+              <p style="margin: 0; font-size: 13px; font-weight: 600;">Return verification approved.</p>
+              <p style="margin: 4px 0 0 0; font-size: 12px; color: #047857;">Any applicable refund or store credit will be issued promptly to your original payment method.</p>
+            </div>
+          `,
+          order,
+        });
+        break;
+
+      // 🔁 10. Exchange Requested
+      case "exchange_requested":
+        subject = `Exchange Request Received for Order [#${order.razorpayOrderId}] 🔁`;
+        emailHtml = buildFurniroEmailHtml({
+          title: "Exchange Requested",
+          badgeText: "Exchange In Progress 🔁",
+          badgeColor: "#0284c7",
+          introTitle: `Exchange Request Received, ${recipientName}!`,
+          introBody: "Your exchange/replacement request has been logged. Our logistics team will contact you to coordinate pickup and replacement shipment.",
+          highlightBoxHtml: `
+            <div style="background-color: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 14px 18px; color: #0369a1;">
+              <p style="margin: 0; font-size: 13px;"><strong>Exchange Details:</strong> ${order.exchangeReason || order.returnReason || "Customer Requested Exchange"}</p>
+              <p style="margin: 4px 0 0 0; font-size: 12px; color: #0284c7;">A replacement tracking number will be provided as soon as the package is dispatched.</p>
+            </div>
+          `,
+          order,
+        });
+        break;
+
+      // ✨ 11. Replaced
       case "replaced":
         subject = `Replacement Confirmed: Your Furniro Order [#${order.razorpayOrderId}] ✨`;
         emailHtml = buildFurniroEmailHtml({
@@ -361,6 +425,24 @@ const sendOrderStatusNotification = async (order, previousStatus = null) => {
             <div style="background-color: #f0fdfa; border: 1px solid #99f6e4; border-radius: 6px; padding: 14px 18px; color: #115e59;">
               <p style="margin: 0; font-size: 13px;"><strong>Replacement Reason:</strong> ${order.exchangeReason || order.returnReason || "Customer Exchange"}</p>
               <p style="margin: 4px 0 0 0; font-size: 12px; color: #0d9488;">New package will be dispatched with complimentary expedited courier.</p>
+            </div>
+          `,
+          order,
+        });
+        break;
+
+      // ⚠️ 12. Payment Failed
+      case "failed":
+        subject = `Payment Notice for Order [#${order.razorpayOrderId}] ⚠️`;
+        emailHtml = buildFurniroEmailHtml({
+          title: "Payment Incomplete",
+          badgeText: "Payment Failed ⚠️",
+          badgeColor: "#dc2626",
+          introTitle: `Action required for your order, ${recipientName}`,
+          introBody: "We encountered an issue while processing your payment. Your furniture items are reserved for a limited time.",
+          highlightBoxHtml: `
+            <div style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 14px 18px; color: #991b1b;">
+              <p style="margin: 0; font-size: 13px;">You can retry your payment or complete the checkout anytime from your Furniro Order History.</p>
             </div>
           `,
           order,

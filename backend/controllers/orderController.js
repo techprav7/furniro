@@ -301,6 +301,10 @@ exports.failOrder = async (req, res) => {
       }
     );
 
+    // Trigger payment failed email notification
+    const { sendOrderStatusNotification } = require("../utils/emailService");
+    sendOrderStatusNotification(order).catch((err) => console.error("❌ Failed to send payment failed email:", err));
+
     res.json({ success: true, message: "Order marked as failed", order });
   } catch (error) {
     console.error("❌ FailOrder controller error:", error);
@@ -495,6 +499,10 @@ exports.returnOrder = async (req, res) => {
     order.returnReason = reason || "Return requested by customer";
     await order.save();
 
+    // Trigger return request email notification
+    const { sendOrderStatusNotification } = require("../utils/emailService");
+    sendOrderStatusNotification(order).catch((err) => console.error("❌ Failed to send return request email:", err));
+
     res.json({ success: true, message: "Return request submitted", order });
   } catch (error) {
     console.error("ReturnOrder error:", error);
@@ -526,6 +534,10 @@ exports.exchangeOrder = async (req, res) => {
     order.status = "exchange_requested";
     order.exchangeReason = reason || "Exchange requested by customer";
     await order.save();
+
+    // Trigger exchange request email notification
+    const { sendOrderStatusNotification } = require("../utils/emailService");
+    sendOrderStatusNotification(order).catch((err) => console.error("❌ Failed to send exchange request email:", err));
 
     res.json({ success: true, message: "Exchange request submitted", order });
   } catch (error) {
