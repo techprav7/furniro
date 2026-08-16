@@ -1,52 +1,25 @@
 const { Resend } = require("resend");
-const nodemailer = require("nodemailer");
 
-// ─── Email Transporter Providers ────────────────────────────────────────────
-
-// 1. Resend Instance
+// ─── Resend Client Initialization ───────────────────────────────────────────
 const getResendInstance = () => {
   const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) return null;
+  if (!apiKey) {
+    console.warn("⚠️ RESEND_API_KEY is missing. Emails will be logged to the console instead of being sent.");
+    return null;
+  }
   return new Resend(apiKey);
 };
 
-// 2. Nodemailer SMTP Transporter
-const getSmtpTransporter = () => {
-  const host = process.env.SMTP_HOST;
-  const user = process.env.SMTP_USER || process.env.GMAIL_USER;
-  const pass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD;
-
-  if (user && pass) {
-    if (host) {
-      return nodemailer.createTransport({
-        host,
-        port: parseInt(process.env.SMTP_PORT || "587", 10),
-        secure: process.env.SMTP_SECURE === "true" || process.env.SMTP_PORT === "465",
-        auth: { user, pass },
-      });
-    } else {
-      // Default to Gmail service if host not specified
-      return nodemailer.createTransport({
-        service: "gmail",
-        auth: { user, pass },
-      });
-    }
-  }
-  return null;
-};
-
 /**
- * Universal sender that handles Resend with SMTP fallback
+ * Sends an email using the Resend API
  */
 const sendRawEmail = async ({ to, subject, html, orderId, status }) => {
-  const fromEmail = process.env.RESEND_FROM_EMAIL || process.env.SMTP_FROM || "Furniro <onboarding@resend.dev>";
+  const fromEmail = process.env.RESEND_FROM_EMAIL || "Furniro <onboarding@resend.dev>";
   const resend = getResendInstance();
-  const smtp = getSmtpTransporter();
 
-  // Try Resend first if available
   if (resend) {
     try {
-      console.log(`📡 [EMAIL DISPATCH] Sending [${status.toUpperCase()}] email via Resend to ${to}...`);
+      console.log(`📡 [RESEND] Sending [${status.toUpperCase()}] email to ${to}...`);
       const { data, error } = await resend.emails.send({
         from: fromEmail,
         to,
@@ -55,29 +28,10 @@ const sendRawEmail = async ({ to, subject, html, orderId, status }) => {
       });
 
       if (error) {
-        console.warn(`⚠️ Resend API returned error for order #${orderId} (${status}):`, error.message || error);
+        console.error(`❌ Resend API error for order #${orderId} (${status}):`, error.message || error);
         
-        // If Resend failed due to sandbox domain (403), attempt SMTP fallback if configured
-        if (smtp) {
-          console.log(`🔄 Attempting SMTP fallback for ${to}...`);
-          const smtpInfo = await smtp.sendMail({
-            from: fromEmail,
-            to,
-            subject,
-            html,
-          });
-          console.log(`✅ [${status.toUpperCase()}] email sent successfully via SMTP to ${to}. MessageId: ${smtpInfo.messageId}`);
-          return { success: true, provider: "smtp", id: smtpInfo.messageId };
-        }
-
         if (error.statusCode === 403 || String(error.message).includes("testing emails")) {
-          console.error(`\n=================== RESEND SANDBOX RESTRICTION ===================`);
-          console.error(`❌ Resend sandbox 'onboarding@resend.dev' only allows sending to the account owner email.`);
-          console.error(`ℹ️ Recipient was: ${to}`);
-          console.error(`💡 Solutions to send to ANY logged-in user:`);
-          console.error(`   1. Add & verify your custom domain at https://resend.com/domains`);
-          console.error(`   2. OR configure SMTP credentials in .env (SMTP_USER/SMTP_PASS or GMAIL_USER/GMAIL_APP_PASSWORD)`);
-          console.error(`==================================================================\n`);
+          console.warn(`ℹ️ [Resend Notice] To send to non-account recipients like ${to}, verify your custom domain on https://resend.com/domains.`);
         }
         return { success: false, error };
       }
@@ -85,37 +39,12 @@ const sendRawEmail = async ({ to, subject, html, orderId, status }) => {
       console.log(`✅ [${status.toUpperCase()}] email sent successfully via Resend to ${to}. Resend ID: ${data.id}`);
       return { success: true, provider: "resend", id: data.id };
     } catch (err) {
-      console.error(`❌ Resend transport exception for order #${orderId}:`, err.message);
-      if (smtp) {
-        try {
-          console.log(`🔄 Falling back to SMTP for ${to}...`);
-          const smtpInfo = await smtp.sendMail({ from: fromEmail, to, subject, html });
-          console.log(`✅ [${status.toUpperCase()}] email sent successfully via SMTP fallback to ${to}. MessageId: ${smtpInfo.messageId}`);
-          return { success: true, provider: "smtp", id: smtpInfo.messageId };
-        } catch (smtpErr) {
-          console.error(`❌ SMTP fallback also failed:`, smtpErr.message);
-        }
-      }
-    }
-  } else if (smtp) {
-    // If only SMTP is configured
-    try {
-      console.log(`📡 [EMAIL DISPATCH] Sending [${status.toUpperCase()}] email via SMTP to ${to}...`);
-      const smtpInfo = await smtp.sendMail({
-        from: fromEmail,
-        to,
-        subject,
-        html,
-      });
-      console.log(`✅ [${status.toUpperCase()}] email sent successfully via SMTP to ${to}. MessageId: ${smtpInfo.messageId}`);
-      return { success: true, provider: "smtp", id: smtpInfo.messageId };
-    } catch (smtpErr) {
-      console.error(`❌ SMTP transport failed for order #${orderId}:`, smtpErr.message);
-      return { success: false, error: smtpErr };
+      console.error(`❌ Resend network/execution exception for order #${orderId}:`, err.message);
+      return { success: false, error: err };
     }
   } else {
-    // No email provider configured — Log to console for dev
-    console.log(`\n=================== DEV EMAIL LOG [${status.toUpperCase()}] ===================`);
+    // Dev logging if RESEND_API_KEY is not configured
+    console.log(`\n=================== RESEND DEV LOG [${status.toUpperCase()}] ===================`);
     console.log(`TO: ${to}`);
     console.log(`FROM: ${fromEmail}`);
     console.log(`SUBJECT: ${subject}`);
