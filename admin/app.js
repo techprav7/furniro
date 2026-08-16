@@ -511,7 +511,7 @@ const startAdmin = async () => {
                   if (orderId) {
                     const order = await Order.findById(orderId);
                     if (order) {
-                      sendOrderStatusNotification(order).catch(err => console.error("Email notification error on edit:", err));
+                      await sendOrderStatusNotification(order).catch(err => console.error("Email notification error on edit:", err));
                     }
                   }
                 } catch (e) {
@@ -575,7 +575,7 @@ const startAdmin = async () => {
                 await order.save();
 
                 // Send cancellation email notification
-                sendOrderStatusNotification(order).catch(err => console.error("Cancel email error:", err));
+                await sendOrderStatusNotification(order).catch(err => console.error("Cancel email error:", err));
 
                 // Restore stock for all products in order
                 if (order.items && order.items.length > 0) {
@@ -635,7 +635,7 @@ const startAdmin = async () => {
                 );
 
                 // Send refund confirmation email
-                sendOrderStatusNotification(order).catch(err => console.error("Refund email error:", err));
+                await sendOrderStatusNotification(order).catch(err => console.error("Refund email error:", err));
 
                 const updatedRecord = await resource.findOne(orderId);
                 return {
@@ -670,7 +670,7 @@ const startAdmin = async () => {
                 await order.save();
 
                 // Send replacement confirmation email
-                sendOrderStatusNotification(order).catch(err => console.error("Replace email error:", err));
+                await sendOrderStatusNotification(order).catch(err => console.error("Replace email error:", err));
 
                 const updatedRecord = await resource.findOne(orderId);
                 return {
@@ -704,7 +704,7 @@ const startAdmin = async () => {
                 await order.save();
 
                 // Send dispatch notification email
-                sendOrderStatusNotification(order).catch(err => console.error("Dispatch email error:", err));
+                await sendOrderStatusNotification(order).catch(err => console.error("Dispatch email error:", err));
 
                 const updatedRecord = await resource.findOne(orderId);
                 return {
@@ -738,7 +738,7 @@ const startAdmin = async () => {
                 await order.save();
 
                 // Send shipping & tracking notification email
-                sendOrderStatusNotification(order).catch(err => console.error("Shipped email error:", err));
+                await sendOrderStatusNotification(order).catch(err => console.error("Shipped email error:", err));
 
                 const updatedRecord = await resource.findOne(orderId);
                 return {
@@ -772,7 +772,7 @@ const startAdmin = async () => {
                 await order.save();
 
                 // Send Out for Delivery email
-                sendOrderStatusNotification(order).catch(err => console.error("Out for delivery email error:", err));
+                await sendOrderStatusNotification(order).catch(err => console.error("Out for delivery email error:", err));
 
                 const updatedRecord = await resource.findOne(orderId);
                 return {
@@ -806,7 +806,7 @@ const startAdmin = async () => {
                 await order.save();
 
                 // Send Delivery confirmation email
-                sendOrderStatusNotification(order).catch(err => console.error("Delivered email error:", err));
+                await sendOrderStatusNotification(order).catch(err => console.error("Delivered email error:", err));
 
                 const updatedRecord = await resource.findOne(orderId);
                 return {
@@ -841,7 +841,7 @@ const startAdmin = async () => {
                 await order.save();
 
                 // Send return confirmation email
-                sendOrderStatusNotification(order).catch(err => console.error("Return email error:", err));
+                await sendOrderStatusNotification(order).catch(err => console.error("Return email error:", err));
 
                 // Restore inventory
                 if (order.items && order.items.length > 0) {
