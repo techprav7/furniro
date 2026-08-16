@@ -938,15 +938,42 @@ const startAdmin = async () => {
             new: { isAccessible: false },
             delete: { isAccessible: false },
             list: {
-              before: async (request, context) => {
-                // By default filter to return and exchange lifecycle if no custom filter supplied
-                if (!request.query["filters.status"]) {
-                  request.query = {
-                    ...request.query,
-                    "filters.status~~": "return_requested,exchange_requested,returned,replaced"
-                  };
+              handler: async (request, response, context) => {
+                const { resource, currentAdmin } = context;
+                const { sortBy = "updatedAt", direction = "desc", page = 1, perPage = 20 } = request.query;
+
+                // Query condition: filter by selected status or all return/exchange lifecycle by default
+                let query = {};
+                const selectedStatus = request.query["filters.status"];
+                if (selectedStatus) {
+                  query.status = selectedStatus;
+                } else {
+                  query.status = { $in: ["return_requested", "exchange_requested", "returned", "replaced"] };
                 }
-                return request;
+
+                if (request.query["filters.razorpayOrderId"]) {
+                  query.razorpayOrderId = new RegExp(request.query["filters.razorpayOrderId"], "i");
+                }
+
+                const total = await Order.countDocuments(query);
+                const sortOrder = direction === "asc" ? 1 : -1;
+                const rawDocs = await Order.find(query)
+                  .sort({ [sortBy]: sortOrder })
+                  .skip((Number(page) - 1) * Number(perPage))
+                  .limit(Number(perPage));
+
+                const records = rawDocs.map(doc => resource.build(doc.toObject ? doc.toObject() : doc));
+
+                return {
+                  records: records.map(r => r.toJSON(currentAdmin)),
+                  meta: {
+                    total,
+                    perPage: Number(perPage),
+                    page: Number(page),
+                    direction,
+                    sortBy,
+                  },
+                };
               }
             },
 
