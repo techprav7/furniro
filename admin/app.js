@@ -34,21 +34,23 @@ try {
   }
 }
 
+dotenv.config({ path: path.join(__dirname, ".env") });
 dotenv.config();
 
 // ─── Load Backend Mongoose Models (CommonJS) ────────────────────────────────
-let Product, Order, User, Payment, Contact;
+let Product, Order, User, Payment, Contact, Category, Coupon, Banner, Setting;
 try {
   Product = require("../backend/models/Product.js");
   Order = require("../backend/models/Order.js");
   User = require("../backend/models/User.js");
   Payment = require("../backend/models/Payment.js");
   Contact = require("../backend/models/Contact.js");
+  Category = require("../backend/models/Category.js");
+  Coupon = require("../backend/models/Coupon.js");
+  Banner = require("../backend/models/Banner.js");
+  Setting = require("../backend/models/Setting.js");
 } catch (err) {
   console.error("\n❌ DEPLOYMENT ERROR: Failed to load backend models in the Admin panel!");
-  console.error("This usually happens when the backend directory is missing or not packaged in your Admin panel deployment.");
-  console.error("👉 FIX: If deploying on Render, ensure the 'Root Directory' is left EMPTY (not 'admin') so the backend folder is accessible.");
-  console.error("👉 BUILD: Set the Build Command to 'npm run install:all' and the Start Command to 'npm run admin'.\n");
   console.error("Original Error:", err.message);
   process.exit(1);
 }
@@ -69,6 +71,8 @@ const dashboardHandler = async (request, response, context) => {
     const totalProducts = await Product.countDocuments();
     const totalUsers = await User.countDocuments();
     const totalContacts = await Contact.countDocuments();
+    const totalCoupons = await Coupon.countDocuments({ isActive: true });
+    const totalBanners = await Banner.countDocuments({ isActive: true });
 
     // Sum of paid/shipped/delivered/dispatched/out_for_delivery orders
     const salesResult = await Order.aggregate([
@@ -77,13 +81,92 @@ const dashboardHandler = async (request, response, context) => {
     ]);
     const totalSales = salesResult.length > 0 ? salesResult[0].total : 0;
 
+    // Low stock products count (stock <= 5)
+    const lowStockCount = await Product.countDocuments({ stock: { $lte: 5 } });
+
+    // Status breakdown
+    const statusCountsAgg = await Order.aggregate([
+      { $group: { _id: "$status", count: { $sum: 1 } } }
+    ]);
+    const statusCounts = {};
+    statusCountsAgg.forEach(item => {
+      statusCounts[item._id] = item.count;
+    });
+
+    // Top 5 Best-Selling Products from Orders
+    const topProductsAgg = await Order.aggregate([
+      { $unwind: "$items" },
+      {
+        $group: {
+          _id: "$items.name",
+          totalQty: { $sum: "$items.quantity" },
+          totalRevenue: { $sum: { $multiply: ["$items.price", "$items.quantity"] } }
+        }
+      },
+      { $sort: { totalQty: -1 } },
+      { $limit: 5 }
+    ]);
+
+    // Last 7 days revenue timeline
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+
+    const timelineAgg = await Order.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: sevenDaysAgo },
+          status: { $in: ["paid", "dispatched", "shipped", "out_for_delivery", "delivered"] }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: "%Y-%m-%d", date: "$createdAt" }
+          },
+          revenue: { $sum: "$totalAmount" },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    // Build complete 7-day array
+    const revenueTimeline = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split("T")[0];
+      const match = timelineAgg.find(t => t._id === dateStr);
+      revenueTimeline.push({
+        date: dateStr,
+        dayName: d.toLocaleDateString("en-US", { weekday: "short" }),
+        revenue: match ? match.revenue : 0,
+        orders: match ? match.count : 0
+      });
+    }
+
+    // Recent 5 Orders
+    const recentOrders = await Order.find()
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select("razorpayOrderId totalAmount status shippingAddress createdAt")
+      .lean();
+
     return {
       stats: {
         totalOrders,
         totalProducts,
         totalUsers,
         totalContacts,
-        totalSales
+        totalSales,
+        lowStockCount,
+        totalCoupons,
+        totalBanners,
+        statusCounts,
+        topProducts: topProductsAgg,
+        revenueTimeline,
+        recentOrders
       }
     };
   } catch (error) {
@@ -103,11 +186,26 @@ if (missingEnvVars.length > 0) {
   process.exit(1);
 }
 
-// ─── Connect to MongoDB ─────────────────────────────────────────────────────
+// ─── Connect to MongoDB & Initialize AdminJS ────────────────────────────────
 const startAdmin = async () => {
   try {
     await mongoose.connect(process.env.MONGODB_URI);
     console.log("✅ Admin panel connected to MongoDB");
+
+    // Initialize Site Settings document if not already present
+    const existingSetting = await Setting.findOne();
+    if (!existingSetting) {
+      await Setting.create({
+        storeName: "Furniro",
+        storeEmail: "support@furniro.com",
+        storePhone: "+91 98765 43210",
+        currencyCode: "INR",
+        currencySymbol: "₹",
+        taxPercentage: 18,
+        freeShippingThreshold: 50000
+      });
+      console.log("⚙️ Default Site Settings initialized");
+    }
   } catch (err) {
     console.error("❌ MongoDB connection failed:", err.message);
     process.exit(1);
@@ -116,6 +214,65 @@ const startAdmin = async () => {
   // ─── AdminJS Configuration ──────────────────────────────────────────────
   const admin = new AdminJS({
     resources: [
+      // ── Categories ───────────────────────────────────────────────────
+      {
+        resource: Category,
+        options: {
+          navigation: { name: "Shop", icon: "Folder" },
+          sort: { sortBy: "displayOrder", direction: "asc" },
+          listProperties: ["name", "slug", "parentCategory", "displayOrder", "isActive", "isFeatured"],
+          editProperties: [
+            "name", "slug", "description", "parentCategory", "imageFile",
+            "bannerFile", "displayOrder", "isActive", "isFeatured"
+          ],
+          showProperties: [
+            "name", "slug", "description", "parentCategory", "image",
+            "banner", "displayOrder", "isActive", "isFeatured", "createdAt", "updatedAt"
+          ],
+          properties: {
+            image: { isRequired: false },
+            imageFile: { label: "Category Thumbnail File", isRequired: false },
+            banner: { isRequired: false },
+            bannerFile: { label: "Category Banner File", isRequired: false },
+            description: { type: "textarea" },
+          },
+        },
+        features: [
+          uploadFeature({
+            componentLoader,
+            provider: new BackendUploadProvider(),
+            uploadPath: (record, filename) => {
+              const ext = path.extname(filename);
+              const base = path.basename(filename, ext).replace(/[^a-zA-Z0-9]/g, "_");
+              return `furnio/categories/${record.id() || "new"}_${Date.now()}_${base}${ext}`;
+            },
+            properties: {
+              key: "image",
+              file: "imageFile",
+            },
+            validation: {
+              mimeTypes: ["image/png", "image/jpeg", "image/jpg", "image/webp", "image/svg+xml"],
+            },
+          }),
+          uploadFeature({
+            componentLoader,
+            provider: new BackendUploadProvider(),
+            uploadPath: (record, filename) => {
+              const ext = path.extname(filename);
+              const base = path.basename(filename, ext).replace(/[^a-zA-Z0-9]/g, "_");
+              return `furnio/categories/banners/${record.id() || "new"}_${Date.now()}_${base}${ext}`;
+            },
+            properties: {
+              key: "banner",
+              file: "bannerFile",
+            },
+            validation: {
+              mimeTypes: ["image/png", "image/jpeg", "image/jpg", "image/webp"],
+            },
+          }),
+        ],
+      },
+
       // ── Products ──────────────────────────────────────────────────────
       {
         resource: Product,
@@ -124,27 +281,31 @@ const startAdmin = async () => {
           sort: { sortBy: "createdAt", direction: "desc" },
           listProperties: ["name", "price", "category", "stock", "isFeatured", "rating", "sku"],
           editProperties: [
-            "name", "description", "price", "originalPrice", "discount",
-            "category", "imageFile", "images", "stock", "sizes", "colors",
-            "tags", "sku", "isFeatured", "isNewArrival",
+            "name", "slug", "sku", "price", "originalPrice", "discount",
+            "category", "subCategory", "parentCategory", "description",
+            "imageFile", "images", "stock", "material", "weight", "weightUnit",
+            "dimensions", "variants", "sizes", "colors", "tags",
+            "isFeatured", "isNewArrival", "autoHideWhenOutOfStock", "allowBackorder",
+            "seoTitle", "seoDescription", "seoKeywords",
           ],
           showProperties: [
-            "name", "description", "price", "originalPrice", "discount",
-            "category", "image", "images", "stock", "sizes", "colors",
-            "reviews", "rating", "reviewCount", "tags", "sku",
-            "isFeatured", "isNewArrival", "createdAt", "updatedAt",
+            "name", "slug", "sku", "price", "originalPrice", "discount",
+            "category", "subCategory", "parentCategory", "description",
+            "image", "images", "stock", "material", "weight", "weightUnit",
+            "dimensions", "variants", "sizes", "colors", "tags",
+            "isFeatured", "isNewArrival", "autoHideWhenOutOfStock", "allowBackorder",
+            "seoTitle", "seoDescription", "seoKeywords",
+            "reviews", "rating", "reviewCount", "createdAt", "updatedAt",
           ],
           properties: {
-            image: {
-              isRequired: false,
-            },
-            imageFile: {
-              label: "Product Image File",
-              isRequired: true,
-            },
+            image: { isRequired: false },
+            imageFile: { label: "Product Primary Image", isRequired: false },
             description: { type: "textarea" },
             images: { type: "mixed", isArray: true },
+            variants: { type: "mixed" },
+            dimensions: { type: "mixed" },
             tags: { type: "mixed", isArray: true },
+            seoKeywords: { type: "mixed", isArray: true },
             category: {
               availableValues: [
                 { value: "Living Room", label: "Living Room" },
@@ -155,6 +316,103 @@ const startAdmin = async () => {
               ],
             },
           },
+          actions: {
+            // 📑 Clone Product Action
+            cloneProduct: {
+              actionType: "record",
+              component: false,
+              icon: "Copy",
+              label: "Duplicate Listing",
+              guard: "Are you sure you want to clone this product listing?",
+              handler: async (request, response, context) => {
+                const { record, resource, currentAdmin } = context;
+                const productId = record.id();
+                const original = await Product.findById(productId).lean();
+                if (!original) throw new Error("Product not found");
+
+                delete original._id;
+                delete original.__v;
+                delete original.createdAt;
+                delete original.updatedAt;
+
+                const suffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+                original.name = `${original.name} (Copy)`;
+                original.sku = `${original.sku || "SKU"}-${suffix}`;
+                original.slug = `${original.slug || "product"}-copy-${suffix.toLowerCase()}`;
+                original.isFeatured = false;
+                original.isNewArrival = false;
+
+                const cloned = await Product.create(original);
+
+                return {
+                  record: record.toJSON(currentAdmin),
+                  notice: {
+                    message: `Product "${original.name}" successfully duplicated (SKU: ${original.sku})!`,
+                    type: "success"
+                  },
+                  redirectUrl: h.recordActionUrl({ resourceId: resource.id(), recordId: cloned._id.toString(), actionName: "edit" })
+                };
+              }
+            },
+
+            // ⚡ Bulk 10% Discount Action
+            bulkApplyDiscount: {
+              actionType: "bulk",
+              icon: "Percent",
+              label: "Apply 10% Discount",
+              guard: "Apply a 10% discount to all selected products?",
+              handler: async (request, response, context) => {
+                const { records } = context;
+                let count = 0;
+                for (const record of records) {
+                  const p = await Product.findById(record.id());
+                  if (p) {
+                    if (!p.originalPrice || p.originalPrice <= p.price) {
+                      p.originalPrice = p.price;
+                    }
+                    p.discount = 10;
+                    p.price = Math.round(p.originalPrice * 0.9);
+                    await p.save();
+                    count++;
+                  }
+                }
+                return {
+                  records: records.map(r => r.toJSON(context.currentAdmin)),
+                  notice: {
+                    message: `Applied 10% discount to ${count} selected products.`,
+                    type: "success"
+                  }
+                };
+              }
+            },
+
+            // ⭐ Bulk Toggle Featured
+            bulkToggleFeatured: {
+              actionType: "bulk",
+              icon: "Star",
+              label: "Toggle Featured",
+              guard: "Toggle the featured flag on all selected products?",
+              handler: async (request, response, context) => {
+                const { records } = context;
+                let count = 0;
+                for (const record of records) {
+                  const p = await Product.findById(record.id());
+                  if (p) {
+                    p.isFeatured = !p.isFeatured;
+                    await p.save();
+                    count++;
+                  }
+                }
+                return {
+                  records: records.map(r => r.toJSON(context.currentAdmin)),
+                  notice: {
+                    message: `Updated featured status for ${count} products.`,
+                    type: "success"
+                  }
+                };
+              }
+            }
+          }
         },
         features: [
           uploadFeature({
@@ -181,7 +439,6 @@ const startAdmin = async () => {
         resource: Order,
         options: {
           navigation: { name: "Sales", icon: "Receipt" },
-          // 🚀 Show latest orders on top (reverse chronological order)
           sort: { sortBy: "createdAt", direction: "desc" },
           listProperties: ["razorpayOrderId", "totalAmount", "status", "clerkUserId", "createdAt"],
           editProperties: [
@@ -236,6 +493,18 @@ const startAdmin = async () => {
             deliveryNotes: { type: "textarea" },
           },
           actions: {
+            // 📥 Export Orders to CSV Action
+            exportOrdersCsv: {
+              actionType: "resource",
+              icon: "Download",
+              label: "Export Orders (CSV)",
+              handler: async (request, response, context) => {
+                return {
+                  redirectUrl: "/admin/export/orders.csv"
+                };
+              }
+            },
+
             // ❌ Cancel Order Action
             cancelOrder: {
               actionType: "record",
@@ -548,7 +817,36 @@ const startAdmin = async () => {
         },
       },
 
-      // ── Users ─────────────────────────────────────────────────────────
+      // ── Coupons & Discounts ───────────────────────────────────────────
+      {
+        resource: Coupon,
+        options: {
+          navigation: { name: "Sales", icon: "Tag" },
+          sort: { sortBy: "createdAt", direction: "desc" },
+          listProperties: ["code", "discountType", "discountValue", "minOrderAmount", "usageLimit", "usageCount", "isActive", "endDate"],
+          editProperties: [
+            "code", "description", "discountType", "discountValue",
+            "minOrderAmount", "maxDiscountAmount", "startDate", "endDate",
+            "usageLimit", "isActive"
+          ],
+          showProperties: [
+            "code", "description", "discountType", "discountValue",
+            "minOrderAmount", "maxDiscountAmount", "startDate", "endDate",
+            "usageLimit", "usageCount", "isActive", "createdAt", "updatedAt"
+          ],
+          properties: {
+            description: { type: "textarea" },
+            discountType: {
+              availableValues: [
+                { value: "percentage", label: "Percentage (%)" },
+                { value: "flat", label: "Flat Amount (₹)" },
+              ],
+            },
+          },
+        },
+      },
+
+      // ── Users / Customers ─────────────────────────────────────────────
       {
         resource: User,
         options: {
@@ -561,6 +859,40 @@ const startAdmin = async () => {
             "defaultAddress", "defaultBillingAddress",
             "createdAt", "updatedAt",
           ],
+          actions: {
+            // 🛍️ Customer Order History Action
+            viewOrderHistory: {
+              actionType: "record",
+              component: false,
+              icon: "ShoppingBag",
+              label: "Order History",
+              handler: async (request, response, context) => {
+                const { record, resource, currentAdmin } = context;
+                const user = await User.findById(record.id()).lean();
+                if (!user) throw new Error("User not found");
+
+                const orders = await Order.find({
+                  $or: [
+                    { clerkUserId: user.clerkId },
+                    { "shippingAddress.email": user.email }
+                  ]
+                }).sort({ createdAt: -1 }).lean();
+
+                const summary = orders.length > 0
+                  ? orders.map(o => `Order #${o.razorpayOrderId || o._id}: ₹${o.totalAmount} (${o.status})`).join(" | ")
+                  : "No orders placed yet.";
+
+                return {
+                  record: record.toJSON(currentAdmin),
+                  notice: {
+                    message: `Customer ${user.name} has ${orders.length} order(s): ${summary}`,
+                    type: "info"
+                  },
+                  redirectUrl: h.recordActionUrl({ resourceId: resource.id(), recordId: record.id(), actionName: "show" })
+                };
+              }
+            }
+          }
         },
       },
 
@@ -571,7 +903,6 @@ const startAdmin = async () => {
           navigation: { name: "Sales", icon: "CreditCard" },
           sort: { sortBy: "createdAt", direction: "desc" },
           listProperties: ["razorpayOrderId", "amount", "currency", "status", "method", "createdAt"],
-          // Payments are read-only for auditing, with custom refund action
           actions: {
             new: { isAccessible: false },
             edit: { isAccessible: false },
@@ -587,6 +918,55 @@ const startAdmin = async () => {
         },
       },
 
+      // ── Banners & Content ─────────────────────────────────────────────
+      {
+        resource: Banner,
+        options: {
+          navigation: { name: "Content", icon: "Image" },
+          sort: { sortBy: "displayOrder", direction: "asc" },
+          listProperties: ["title", "position", "displayOrder", "isActive", "buttonText", "linkUrl"],
+          editProperties: [
+            "title", "subtitle", "imageFile", "mobileImage", "linkUrl",
+            "buttonText", "position", "displayOrder", "isActive", "startDate", "endDate"
+          ],
+          showProperties: [
+            "title", "subtitle", "image", "mobileImage", "linkUrl",
+            "buttonText", "position", "displayOrder", "isActive", "startDate", "endDate",
+            "createdAt", "updatedAt"
+          ],
+          properties: {
+            image: { isRequired: false },
+            imageFile: { label: "Banner Image File", isRequired: false },
+            position: {
+              availableValues: [
+                { value: "hero", label: "Hero Slider (Top Banner)" },
+                { value: "featured_collection", label: "Featured Collection" },
+                { value: "middle_banner", label: "Middle Promo Banner" },
+                { value: "popup", label: "Promotional Popup" },
+              ],
+            },
+          },
+        },
+        features: [
+          uploadFeature({
+            componentLoader,
+            provider: new BackendUploadProvider(),
+            uploadPath: (record, filename) => {
+              const ext = path.extname(filename);
+              const base = path.basename(filename, ext).replace(/[^a-zA-Z0-9]/g, "_");
+              return `furnio/banners/${record.id() || "new"}_${Date.now()}_${base}${ext}`;
+            },
+            properties: {
+              key: "image",
+              file: "imageFile",
+            },
+            validation: {
+              mimeTypes: ["image/png", "image/jpeg", "image/jpg", "image/webp"],
+            },
+          }),
+        ],
+      },
+
       // ── Contacts ──────────────────────────────────────────────────────
       {
         resource: Contact,
@@ -594,12 +974,45 @@ const startAdmin = async () => {
           navigation: { name: "People", icon: "Mail" },
           sort: { sortBy: "createdAt", direction: "desc" },
           listProperties: ["name", "email", "subject", "createdAt"],
-          // Contacts are read-only — submissions from the contact form
           actions: {
             new: { isAccessible: false },
             edit: { isAccessible: false },
           },
           showProperties: ["name", "email", "subject", "message", "createdAt"],
+        },
+      },
+
+      // ── Site Settings ─────────────────────────────────────────────────
+      {
+        resource: Setting,
+        options: {
+          navigation: { name: "Settings", icon: "Settings" },
+          listProperties: ["storeName", "storeEmail", "storePhone", "gstin", "taxPercentage", "freeShippingThreshold"],
+          editProperties: [
+            "storeName", "storeEmail", "storePhone", "storeAddress", "businessHours",
+            "gstin", "taxPercentage", "freeShippingThreshold", "currencyCode", "currencySymbol",
+            "socialInstagram", "socialFacebook", "socialTwitter", "socialPinterest",
+            "returnPolicy", "privacyPolicy", "termsOfService", "shippingPolicy"
+          ],
+          showProperties: [
+            "storeName", "storeEmail", "storePhone", "storeAddress", "businessHours",
+            "gstin", "taxPercentage", "freeShippingThreshold", "currencyCode", "currencySymbol",
+            "socialInstagram", "socialFacebook", "socialTwitter", "socialPinterest",
+            "returnPolicy", "privacyPolicy", "termsOfService", "shippingPolicy",
+            "updatedAt"
+          ],
+          properties: {
+            storeAddress: { type: "textarea" },
+            businessHours: { type: "textarea" },
+            returnPolicy: { type: "textarea" },
+            privacyPolicy: { type: "textarea" },
+            termsOfService: { type: "textarea" },
+            shippingPolicy: { type: "textarea" },
+          },
+          actions: {
+            delete: { isAccessible: false },
+            new: { isAccessible: false }
+          }
         },
       },
     ],
@@ -614,14 +1027,20 @@ const startAdmin = async () => {
       language: "en",
       translations: {
         labels: {
-          Product: "Product",
-          Order: "Order",
-          User: "User",
-          Payment: "Payment",
-          Contact: "Contact",
-          Shop: "Shop",
-          Sales: "Sales",
-          People: "People",
+          Product: "Products",
+          Category: "Categories",
+          Order: "Orders",
+          User: "Customers",
+          Payment: "Payments",
+          Contact: "Inquiries",
+          Coupon: "Coupons & Discounts",
+          Banner: "Banners & Content",
+          Setting: "Store Settings",
+          Shop: "Catalog",
+          Sales: "Sales & Orders",
+          People: "Customer Support",
+          Content: "Marketing",
+          Settings: "Store Config",
         },
         actions: {
           cancelOrder: "Cancel Order",
@@ -632,6 +1051,11 @@ const startAdmin = async () => {
           markOutForDelivery: "Out for Delivery",
           markDelivered: "Mark Delivered",
           markReturned: "Accept Return",
+          cloneProduct: "Duplicate Listing",
+          exportOrdersCsv: "Export to CSV",
+          bulkApplyDiscount: "Bulk 10% Discount",
+          bulkToggleFeatured: "Toggle Featured",
+          viewOrderHistory: "Order History",
         },
       },
     },
@@ -651,7 +1075,7 @@ const startAdmin = async () => {
           email === process.env.ADMIN_EMAIL &&
           password === process.env.ADMIN_PASSWORD
         ) {
-          return { email, title: "Admin" };
+          return { email, title: "Administrator" };
         }
         return null;
       },
@@ -677,6 +1101,51 @@ const startAdmin = async () => {
 
   // ─── Express App ────────────────────────────────────────────────────────
   const app = express();
+
+  // 📥 Endpoint for CSV Orders Export
+  app.get("/admin/export/orders.csv", async (req, res) => {
+    try {
+      const orders = await Order.find().sort({ createdAt: -1 }).lean();
+      const headers = [
+        "Order ID", "Date", "Customer Name", "Email", "Phone", "Street",
+        "City", "State", "Pincode", "Total Amount (INR)", "Status",
+        "Tracking Number", "Courier Partner", "Razorpay Payment ID", "Items Summary"
+      ];
+
+      const rows = orders.map(order => {
+        const itemsSummary = (order.items || [])
+          .map(i => `${i.name} (x${i.quantity}) - ₹${i.price}`)
+          .join(" | ");
+        const addr = order.shippingAddress || {};
+        const customerName = `${addr.firstName || ""} ${addr.lastName || ""}`.trim() || order.clerkUserId;
+
+        return [
+          `"${order.razorpayOrderId || order._id}"`,
+          `"${order.createdAt ? new Date(order.createdAt).toISOString().split('T')[0] : ""}"`,
+          `"${customerName.replace(/"/g, '""')}"`,
+          `"${(addr.email || "").replace(/"/g, '""')}"`,
+          `"${(addr.phone || "").replace(/"/g, '""')}"`,
+          `"${(addr.streetAddress || "").replace(/"/g, '""')}"`,
+          `"${(addr.townCity || "").replace(/"/g, '""')}"`,
+          `"${(addr.province || "").replace(/"/g, '""')}"`,
+          `"${(addr.zipCode || "").replace(/"/g, '""')}"`,
+          order.totalAmount || 0,
+          `"${order.status || ""}"`,
+          `"${(order.trackingNumber || "").replace(/"/g, '""')}"`,
+          `"${(order.courierPartner || "").replace(/"/g, '""')}"`,
+          `"${(order.razorpayPaymentId || "").replace(/"/g, '""')}"`,
+          `"${itemsSummary.replace(/"/g, '""')}"`
+        ].join(",");
+      });
+
+      const csvContent = "\uFEFF" + [headers.join(","), ...rows].join("\r\n");
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename="furniro_orders_${Date.now()}.csv"`);
+      return res.status(200).send(csvContent);
+    } catch (err) {
+      return res.status(500).send("Error generating CSV: " + err.message);
+    }
+  });
   
   // Redirect root requests to the AdminJS dashboard path (/admin)
   app.get("/", (req, res) => {
@@ -687,7 +1156,7 @@ const startAdmin = async () => {
 
   const PORT = process.env.PORT || process.env.ADMIN_PORT || 3002;
   app.listen(PORT, () => {
-    console.log(`✅ AdminJS panel is running at http://localhost:${PORT}${admin.options.rootPath}`);
+    console.log(`✅ Furniro Admin Panel is running at http://localhost:${PORT}${admin.options.rootPath}`);
   });
 };
 

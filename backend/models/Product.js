@@ -56,11 +56,62 @@ const colorSchema = new mongoose.Schema({
   },
 }, { _id: false });
 
+const variantSchema = new mongoose.Schema({
+  sku: {
+    type: String,
+    trim: true,
+  },
+  title: {
+    type: String,
+    trim: true,
+  },
+  color: {
+    type: String,
+    trim: true,
+  },
+  size: {
+    type: String,
+    trim: true,
+  },
+  fabric: {
+    type: String,
+    trim: true,
+  },
+  material: {
+    type: String,
+    trim: true,
+  },
+  price: {
+    type: Number,
+    min: 0,
+  },
+  stock: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
+  image: {
+    type: String,
+    trim: true,
+  },
+  isDefault: {
+    type: Boolean,
+    default: false,
+  },
+}, { _id: false });
+
 const productSchema = new mongoose.Schema(
   {
     name: {
       type: String,
       required: [true, "Product name is required"],
+      trim: true,
+    },
+    slug: {
+      type: String,
+      unique: true,
+      sparse: true,
+      lowercase: true,
       trim: true,
     },
     description: {
@@ -86,8 +137,15 @@ const productSchema = new mongoose.Schema(
     category: {
       type: String,
       required: true,
-      enum: ["Living Room", "Bedroom", "Dining", "Office", "Outdoor"],
       trim: true,
+    },
+    subCategory: {
+      type: String,
+      trim: true,
+    },
+    parentCategory: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
     },
     image: {
       type: String,
@@ -125,8 +183,27 @@ const productSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    dimensions: {
+      length: { type: Number, default: 0 },
+      width: { type: Number, default: 0 },
+      height: { type: Number, default: 0 },
+      unit: { type: String, default: "cm" },
+    },
+    material: {
+      type: String,
+      trim: true,
+    },
+    weight: {
+      type: Number,
+      default: 0,
+    },
+    weightUnit: {
+      type: String,
+      default: "kg",
+    },
     sizes: [sizeSchema],
     colors: [colorSchema],
+    variants: [variantSchema],
     reviews: [reviewSchema],
     rating: {
       type: Number,
@@ -146,7 +223,24 @@ const productSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    autoHideWhenOutOfStock: {
+      type: Boolean,
+      default: false,
+    },
+    allowBackorder: {
+      type: Boolean,
+      default: false,
+    },
     tags: [String],
+    seoTitle: {
+      type: String,
+      trim: true,
+    },
+    seoDescription: {
+      type: String,
+      trim: true,
+    },
+    seoKeywords: [String],
     sku: {
       type: String,
       required: [true, "Product SKU is required"],
@@ -172,12 +266,22 @@ productSchema.methods.recalculateRating = function () {
 };
 
 // Index for search and filtering
-productSchema.index({ name: "text", description: "text" });
+productSchema.index({ name: "text", description: "text", seoTitle: "text" });
 productSchema.index({ category: 1 });
+productSchema.index({ subCategory: 1 });
 productSchema.index({ price: 1 });
 
-// Pre-validate hook to clean up empty arrays and set blank unique fields to undefined
+// Pre-validate hook to clean up empty arrays, auto-generate slug if missing, and set blank unique fields
 productSchema.pre("validate", function (next) {
+  // Auto-generate slug from name if not provided
+  if (!this.slug && this.name) {
+    this.slug = this.name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") + `-${Math.random().toString(36).substring(2, 7)}`;
+  }
+
   // Clean up sizes array
   if (this.sizes && Array.isArray(this.sizes)) {
     this.sizes = this.sizes.filter(
@@ -197,6 +301,13 @@ productSchema.pre("validate", function (next) {
     );
   }
 
+  // Clean up variants array
+  if (this.variants && Array.isArray(this.variants)) {
+    this.variants = this.variants.filter(
+      (item) => item && (item.sku || item.title || item.color || item.size)
+    );
+  }
+
   // Clean up tags array
   if (this.tags && Array.isArray(this.tags)) {
     this.tags = this.tags.filter((t) => typeof t === "string" && t.trim() !== "");
@@ -207,6 +318,11 @@ productSchema.pre("validate", function (next) {
     this.images = this.images.filter((img) => typeof img === "string" && img.trim() !== "");
   }
 
+  // Clean up seoKeywords array
+  if (this.seoKeywords && Array.isArray(this.seoKeywords)) {
+    this.seoKeywords = this.seoKeywords.filter((k) => typeof k === "string" && k.trim() !== "");
+  }
+
   // Handle blank sku to prevent duplicate key errors with sparse unique index
   if (this.sku === "" || (typeof this.sku === "string" && this.sku.trim() === "")) {
     this.sku = undefined;
@@ -214,6 +330,5 @@ productSchema.pre("validate", function (next) {
 
   next();
 });
-
 
 module.exports = mongoose.model("Product", productSchema);
