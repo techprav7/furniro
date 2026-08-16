@@ -38,7 +38,7 @@ dotenv.config({ path: path.join(__dirname, ".env") });
 dotenv.config();
 
 // ─── Load Backend Mongoose Models (CommonJS) ────────────────────────────────
-let Product, Order, User, Payment, Contact, Category, Coupon, Banner, Setting;
+let Product, Order, User, Payment, Contact, Category, Coupon, Banner, Setting, ReturnRequest;
 try {
   Product = require("../backend/models/Product.js");
   Order = require("../backend/models/Order.js");
@@ -49,6 +49,7 @@ try {
   Coupon = require("../backend/models/Coupon.js");
   Banner = require("../backend/models/Banner.js");
   Setting = require("../backend/models/Setting.js");
+  ReturnRequest = mongoose.models.ReturnRequest || mongoose.model("ReturnRequest", Order.schema, "orders");
 } catch (err) {
   console.error("\n❌ DEPLOYMENT ERROR: Failed to load backend models in the Admin panel!");
   console.error("Original Error:", err.message);
@@ -82,6 +83,11 @@ const dashboardHandler = async (request, response, context) => {
     const totalContacts = await Contact.countDocuments();
     const totalCoupons = await Coupon.countDocuments({ isActive: true });
     const totalBanners = await Banner.countDocuments({ isActive: true });
+
+    // Pending Returns & Exchanges Count
+    const pendingReturnsCount = await Order.countDocuments({
+      status: { $in: ["return_requested", "exchange_requested"] }
+    });
 
     // Sum of paid/shipped/delivered/dispatched/out_for_delivery orders
     const salesResult = await Order.aggregate([
@@ -172,6 +178,7 @@ const dashboardHandler = async (request, response, context) => {
         lowStockCount,
         totalCoupons,
         totalBanners,
+        pendingReturnsCount,
         statusCounts,
         topProducts: topProductsAgg,
         revenueTimeline,
@@ -863,6 +870,245 @@ const startAdmin = async () => {
                   notice: {
                     message: `Order #${order.razorpayOrderId} marked as Returned, stock restored, and customer notified.`,
                     type: "success"
+                  },
+                  redirectUrl: h.recordActionUrl({ resourceId: resource.id(), recordId: orderId, actionName: "show" })
+                };
+              }
+            },
+          },
+        },
+      },
+
+      // ── Returns & Exchanges (Dedicated Approval Center) ────────────────
+      {
+        resource: ReturnRequest,
+        options: {
+          id: "ReturnRequest",
+          navigation: { name: "Customer Care", icon: "RotateCcw" },
+          sort: { sortBy: "updatedAt", direction: "desc" },
+          listProperties: [
+            "razorpayOrderId",
+            "status",
+            "returnReason",
+            "exchangeReason",
+            "totalAmount",
+            "shippingAddress",
+            "updatedAt"
+          ],
+          showProperties: [
+            "razorpayOrderId",
+            "status",
+            "totalAmount",
+            "returnReason",
+            "exchangeReason",
+            "refundId",
+            "refundAmount",
+            "cancellationReason",
+            "trackingNumber",
+            "courierPartner",
+            "deliveryNotes",
+            "shippingAddress",
+            "items",
+            "createdAt",
+            "updatedAt"
+          ],
+          editProperties: [
+            "status",
+            "returnReason",
+            "exchangeReason",
+            "deliveryNotes"
+          ],
+          properties: {
+            status: {
+              availableValues: [
+                { value: "return_requested", label: "🔄 Return Requested (Pending Approval)" },
+                { value: "exchange_requested", label: "🔁 Exchange Requested (Pending Approval)" },
+                { value: "returned", label: "↩️ Return Approved & Items Received" },
+                { value: "replaced", label: "✨ Exchange Approved & Replaced" },
+                { value: "refunded", label: "💰 Refund Issued" },
+                { value: "delivered", label: "✅ Delivered (Request Closed/Rejected)" },
+              ],
+            },
+            shippingAddress: { type: "mixed" },
+            items: { type: "mixed" },
+            returnReason: { type: "textarea" },
+            exchangeReason: { type: "textarea" },
+          },
+          actions: {
+            new: { isAccessible: false },
+            delete: { isAccessible: false },
+            list: {
+              before: async (request, context) => {
+                // By default filter to return and exchange lifecycle if no custom filter supplied
+                if (!request.query["filters.status"]) {
+                  request.query = {
+                    ...request.query,
+                    "filters.status~~": "return_requested,exchange_requested,returned,replaced"
+                  };
+                }
+                return request;
+              }
+            },
+
+            // ↩️ 1-Click Action: Approve Return & Receive Items
+            approveReturn: {
+              actionType: "record",
+              component: false,
+              icon: "CheckCircle",
+              label: "Approve Return",
+              guard: "Approve return request, mark items received, restore inventory, and notify customer?",
+              isVisible: (context) => {
+                const status = context.record?.get("status");
+                return ["return_requested", "exchange_requested"].includes(status);
+              },
+              handler: async (request, response, context) => {
+                const { record, resource, currentAdmin } = context;
+                const orderId = record.id();
+                const order = await Order.findById(orderId);
+                if (!order) throw new Error("Order not found");
+
+                order.status = "returned";
+                await order.save();
+
+                // Send return confirmation email to customer
+                await sendOrderStatusNotification(order).catch(err => console.error("Return approval email error:", err));
+
+                // Restore stock for returned products
+                if (order.items && order.items.length > 0) {
+                  for (const item of order.items) {
+                    if (item.productId) {
+                      await Product.findByIdAndUpdate(item.productId, {
+                        $inc: { stock: item.quantity }
+                      });
+                    }
+                  }
+                }
+
+                const updatedRecord = await resource.findOne(orderId);
+                return {
+                  record: updatedRecord.toJSON(currentAdmin),
+                  notice: {
+                    message: `✅ Return Request for Order #${order.razorpayOrderId} APPROVED. Items marked returned, inventory restored, and customer notified.`,
+                    type: "success"
+                  },
+                  redirectUrl: h.recordActionUrl({ resourceId: resource.id(), recordId: orderId, actionName: "show" })
+                };
+              }
+            },
+
+            // 🔁 1-Click Action: Approve Exchange & Ship Replacement
+            approveExchange: {
+              actionType: "record",
+              component: false,
+              icon: "Repeat",
+              label: "Approve Exchange",
+              guard: "Approve exchange request, schedule replacement item, and notify customer?",
+              isVisible: (context) => {
+                const status = context.record?.get("status");
+                return ["exchange_requested", "return_requested"].includes(status);
+              },
+              handler: async (request, response, context) => {
+                const { record, resource, currentAdmin } = context;
+                const orderId = record.id();
+                const order = await Order.findById(orderId);
+                if (!order) throw new Error("Order not found");
+
+                order.status = "replaced";
+                await order.save();
+
+                // Send replacement confirmation email
+                await sendOrderStatusNotification(order).catch(err => console.error("Exchange approval email error:", err));
+
+                const updatedRecord = await resource.findOne(orderId);
+                return {
+                  record: updatedRecord.toJSON(currentAdmin),
+                  notice: {
+                    message: `✨ Exchange Request for Order #${order.razorpayOrderId} APPROVED. Replacement confirmed and customer notified.`,
+                    type: "success"
+                  },
+                  redirectUrl: h.recordActionUrl({ resourceId: resource.id(), recordId: orderId, actionName: "show" })
+                };
+              }
+            },
+
+            // 💰 1-Click Action: Issue Refund
+            issueRefund: {
+              actionType: "record",
+              component: false,
+              icon: "DollarSign",
+              label: "Approve Refund",
+              guard: "Issue full refund for this returned order and notify customer?",
+              isVisible: (context) => {
+                const status = context.record?.get("status");
+                return ["return_requested", "returned"].includes(status);
+              },
+              handler: async (request, response, context) => {
+                const { record, resource, currentAdmin } = context;
+                const orderId = record.id();
+                const order = await Order.findById(orderId);
+                if (!order) throw new Error("Order not found");
+
+                const mockRefundId = `admin_rfnd_${Date.now()}`;
+                order.status = "refunded";
+                order.refundId = mockRefundId;
+                order.refundAmount = order.totalAmount;
+                await order.save();
+
+                await Payment.findOneAndUpdate(
+                  { razorpayOrderId: order.razorpayOrderId },
+                  {
+                    $set: {
+                      status: "refunded",
+                      refundId: mockRefundId,
+                      refundAmount: order.totalAmount
+                    }
+                  }
+                );
+
+                // Send refund confirmation email
+                await sendOrderStatusNotification(order).catch(err => console.error("Refund approval email error:", err));
+
+                const updatedRecord = await resource.findOne(orderId);
+                return {
+                  record: updatedRecord.toJSON(currentAdmin),
+                  notice: {
+                    message: `💰 Refund of ₹${order.totalAmount} issued for Order #${order.razorpayOrderId} and customer notified.`,
+                    type: "success"
+                  },
+                  redirectUrl: h.recordActionUrl({ resourceId: resource.id(), recordId: orderId, actionName: "show" })
+                };
+              }
+            },
+
+            // ❌ 1-Click Action: Reject Request
+            rejectRequest: {
+              actionType: "record",
+              component: false,
+              icon: "XCircle",
+              label: "Reject Request",
+              guard: "Reject this return/exchange request? Order will revert to Delivered status.",
+              isVisible: (context) => {
+                const status = context.record?.get("status");
+                return ["return_requested", "exchange_requested"].includes(status);
+              },
+              handler: async (request, response, context) => {
+                const { record, resource, currentAdmin } = context;
+                const orderId = record.id();
+                const order = await Order.findById(orderId);
+                if (!order) throw new Error("Order not found");
+
+                order.status = "delivered";
+                await order.save();
+
+                // Send status update email
+                await sendOrderStatusNotification(order).catch(err => console.error("Reject email error:", err));
+
+                const updatedRecord = await resource.findOne(orderId);
+                return {
+                  record: updatedRecord.toJSON(currentAdmin),
+                  notice: {
+                    message: `Order #${order.razorpayOrderId} return/exchange request rejected and order closed.`,
+                    type: "info"
                   },
                   redirectUrl: h.recordActionUrl({ resourceId: resource.id(), recordId: orderId, actionName: "show" })
                 };

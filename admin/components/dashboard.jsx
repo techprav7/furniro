@@ -109,6 +109,7 @@ const Dashboard = () => {
     lowStockCount: 0,
     totalCoupons: 0,
     totalBanners: 0,
+    pendingReturnsCount: 0,
     statusCounts: {},
     topProducts: [],
     revenueTimeline: [],
@@ -121,16 +122,21 @@ const Dashboard = () => {
     <Box variant="grey" style={{ padding: '32px 40px', minHeight: '100vh', backgroundColor: '#f4f6fa', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       
       {/* ─── Header & Quick Actions ───────────────────────── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px', flexWrap: 'wrap', gap: '16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <H2 style={{ fontWeight: 800, color: '#1c1c3a', margin: 0, fontSize: '28px' }}>
             Furniro Admin Central
           </H2>
           <Text color="grey60" style={{ marginTop: '4px', fontSize: '14px' }}>
-            Real-time catalog, sales trends, and order fulfillment metrics
+            Real-time catalog, sales trends, and customer care metrics
           </Text>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
+          <a href="/admin/resources/ReturnRequest" style={{ textDecoration: 'none' }}>
+            <Button variant="secondary" size="sm" style={{ borderColor: '#d97706', color: '#d97706', borderRadius: '6px', fontWeight: 600, backgroundColor: '#fffbeb' }}>
+              🔄 Returns & Exchanges ({s.pendingReturnsCount || 0})
+            </Button>
+          </a>
           <a href="/admin/resources/Product/actions/new" style={{ textDecoration: 'none' }}>
             <Button variant="primary" size="sm" style={{ backgroundColor: '#B88E2F', borderColor: '#B88E2F', borderRadius: '6px', fontWeight: 600 }}>
               + Add Product
@@ -141,11 +147,6 @@ const Dashboard = () => {
               + Add Category
             </Button>
           </a>
-          <a href="/admin/resources/Coupon/actions/new" style={{ textDecoration: 'none' }}>
-            <Button variant="secondary" size="sm" style={{ borderRadius: '6px', fontWeight: 600 }}>
-              + Add Coupon
-            </Button>
-          </a>
           <a href="/admin/export/orders.csv" style={{ textDecoration: 'none' }}>
             <Button variant="light" size="sm" style={{ borderRadius: '6px', fontWeight: 600 }}>
               📥 Export Orders CSV
@@ -154,13 +155,59 @@ const Dashboard = () => {
         </div>
       </div>
 
+      {/* ─── Urgent Action Banner: Pending Returns & Exchanges ─── */}
+      {s.pendingReturnsCount > 0 && (
+        <div style={{
+          backgroundColor: '#fffbeb',
+          border: '1px solid #fde68a',
+          borderRadius: '12px',
+          padding: '18px 24px',
+          marginBottom: '24px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '16px',
+          boxShadow: '0 4px 12px rgba(217, 119, 6, 0.08)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{
+              backgroundColor: '#fef3c7',
+              width: '42px',
+              height: '42px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#d97706',
+              flexShrink: 0
+            }}>
+              <Icon icon="RotateCcw" size={22} />
+            </div>
+            <div>
+              <Text style={{ fontWeight: 700, fontSize: '15px', color: '#92400e', margin: 0 }}>
+                ⚠️ {s.pendingReturnsCount} Return / Exchange Request{s.pendingReturnsCount > 1 ? 's' : ''} Awaiting Review
+              </Text>
+              <Text size="xs" style={{ color: '#b45309', margin: '2px 0 0 0' }}>
+                Customer return or replacement requests need your approval or inspection.
+              </Text>
+            </div>
+          </div>
+          <a href="/admin/resources/ReturnRequest" style={{ textDecoration: 'none' }}>
+            <Button variant="primary" size="sm" style={{ backgroundColor: '#d97706', borderColor: '#d97706', color: '#fff', borderRadius: '6px', fontWeight: 700, padding: '8px 18px' }}>
+              Review Return Requests ({s.pendingReturnsCount}) →
+            </Button>
+          </a>
+        </div>
+      )}
+
       {/* ─── Top KPI Cards ─────────────────────────────────── */}
       <div style={{ display: 'flex', flexWrap: 'wrap', margin: '-8px', marginBottom: '24px' }}>
         <StatCard title="Total Revenue" value={formatSales(s.totalSales)} subtitle="Paid & Delivered Orders" icon="DollarSign" color="#2ecc71" />
         <StatCard title="Total Orders" value={s.totalOrders} subtitle="All Lifetime Orders" icon="ShoppingBag" color="#3498db" />
+        <StatCard title="Return Requests" value={s.pendingReturnsCount} subtitle={s.pendingReturnsCount > 0 ? "Awaiting Approval" : "All Clear"} icon="RotateCcw" color="#d97706" />
         <StatCard title="Total Catalog" value={s.totalProducts} subtitle={`${s.lowStockCount} low in stock`} icon="Package" color="#B88E2F" />
         <StatCard title="Customers" value={s.totalUsers} subtitle="Registered Accounts" icon="Users" color="#9b59b6" />
-        <StatCard title="Active Promotions" value={`${s.totalCoupons} Coupons`} subtitle={`${s.totalBanners} Active Banners`} icon="Tag" color="#e67e22" />
         <StatCard title="Inquiries" value={s.totalContacts} subtitle="Contact Submissions" icon="Mail" color="#1abc9c" />
       </div>
 
