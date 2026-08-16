@@ -37,18 +37,38 @@ const OrderHistory = () => {
   };
 
   const getStatusColor = (status) => {
-    const colors = {
-      "Order Placed": "bg-amber-100 text-amber-850 border-amber-200",
-      "Order Under Process": "bg-amber-100 text-amber-800 border-amber-200",
-      "Order Success": "bg-green-100 text-green-800 border-green-200",
-      "Order Failed": "bg-red-100 text-red-850 border-red-200",
-      Shipped: "bg-indigo-100 text-indigo-800 border-indigo-200",
-      Delivered: "bg-green-100 text-green-800 border-green-200",
-      Cancelled: "bg-gray-100 text-gray-800 border-gray-200",
-      Return_requested: "bg-purple-100 text-purple-800 border-purple-200",
-      Exchange_requested: "bg-pink-100 text-pink-800 border-pink-200",
-    };
-    return colors[status] || "bg-gray-100 text-gray-800 border-gray-200";
+    const s = String(status || "").toLowerCase();
+    if (s.includes("placed") || s.includes("process") || s.includes("pending") || s.includes("paid")) {
+      return "bg-amber-100 text-amber-800 border-amber-200";
+    }
+    if (s.includes("dispatched")) {
+      return "bg-blue-100 text-blue-800 border-blue-200";
+    }
+    if (s.includes("shipped")) {
+      return "bg-indigo-100 text-indigo-800 border-indigo-200";
+    }
+    if (s.includes("out for delivery")) {
+      return "bg-purple-100 text-purple-800 border-purple-200";
+    }
+    if (s.includes("delivered") || s.includes("success")) {
+      return "bg-green-100 text-green-800 border-green-200";
+    }
+    if (s.includes("refunded")) {
+      return "bg-emerald-100 text-emerald-800 border-emerald-200";
+    }
+    if (s.includes("replaced")) {
+      return "bg-teal-100 text-teal-800 border-teal-200";
+    }
+    if (s.includes("returned") || s.includes("return")) {
+      return "bg-rose-100 text-rose-800 border-rose-200";
+    }
+    if (s.includes("exchange") || s.includes("replace")) {
+      return "bg-pink-100 text-pink-800 border-pink-200";
+    }
+    if (s.includes("failed")) {
+      return "bg-red-100 text-red-800 border-red-200";
+    }
+    return "bg-gray-100 text-gray-800 border-gray-200";
   };
 
   if (loading) {
@@ -77,7 +97,7 @@ const OrderHistory = () => {
             </p>
             <Link
               to="/shop"
-              className="inline-flex items-center gap-2 bg-[#B88E2F] text-white px-6 py-3 rounded hover:bg-[#a5761f] transition font-semibold"
+              className="inline-flex items-center gap-2 bg-[#B88E2F] text-white px-8 py-3 rounded-full hover:bg-[#a5761f] transition font-semibold shadow-sm"
             >
               Start Shopping <ArrowRight className="w-5 h-5" />
             </Link>
@@ -108,11 +128,11 @@ const OrderHistory = () => {
                         <tr className="hover:bg-gray-50 transition border-b border-gray-100">
                           <td className="p-4 sm:p-6">
                             {order.items && order.items.length > 0 ? (
-                              <Link to={`/product/${order.items[0]._id || order.items[0].productId}`} className="flex items-center gap-3 hover:opacity-85 group transition">
+                              <Link to={`/product/${order.items[0]._id || order.items[0].productId}`} className="flex items-center gap-3 hover:opacity-85 group transition no-underline">
                                 <img
                                   src={order.items[0].image}
                                   alt={order.items[0].name}
-                                  className="w-12 h-12 object-cover rounded border border-gray-200 shadow-sm group-hover:border-[#B88E2F]"
+                                  className="w-12 h-12 object-cover rounded-lg border border-gray-200 shadow-sm group-hover:border-[#B88E2F]"
                                 />
                                 <div className="hidden md:block text-xs text-left max-w-[130px]">
                                   <p className="font-bold text-gray-800 truncate mb-0">{order.items[0].name}</p>
@@ -141,13 +161,13 @@ const OrderHistory = () => {
                           <td className="p-4 sm:p-6 flex items-center justify-center gap-3">
                             <Link
                               to={`/orders/${order.id}`}
-                              className="inline-flex items-center gap-1 text-[#B88E2F] hover:text-[#906c20] font-medium"
+                              className="inline-flex items-center gap-1.5 text-[#B88E2F] hover:text-[#906c20] font-semibold bg-[#faf3ea] hover:bg-[#f3e5ce] px-3.5 py-1.5 rounded-full text-xs transition"
                             >
-                              <Eye className="w-4 h-4" /> Detail Page
+                              <Eye className="w-4 h-4" /> View Order
                             </Link>
                             <button
                               onClick={() => toggleRow(order.id)}
-                              className="inline-flex items-center gap-1 text-gray-500 hover:text-black font-medium transition py-1 px-2.5 rounded hover:bg-gray-100"
+                              className="inline-flex items-center gap-1 text-gray-600 hover:text-black font-medium transition py-1.5 px-3 rounded-full hover:bg-gray-100 text-xs"
                             >
                               {isExpanded ? (
                                 <>Collapse <ChevronUp className="w-4 h-4" /></>

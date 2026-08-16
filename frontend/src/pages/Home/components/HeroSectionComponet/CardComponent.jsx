@@ -144,7 +144,7 @@ function CardComponent({ product, img, title, description, price, oldPrice }) {
       <div className="absolute inset-0 flex flex-col justify-center items-center bg-black bg-opacity-60 opacity-0 group-hover:opacity-100 transition-all duration-300 z-20 px-4">
         <button 
           onClick={(e) => { e.stopPropagation(); navigate(`/product/${p._id}`); }}
-          className="bg-white text-[#B88E2F] font-semibold py-3 px-8 rounded shadow-md hover:bg-[#B88E2F] hover:text-white transition duration-300 mb-6 w-[80%] text-center"
+          className="bg-white text-[#B88E2F] font-semibold py-3 px-8 rounded-full shadow-md hover:bg-[#B88E2F] hover:text-white transition duration-300 mb-6 w-[80%] text-center"
         >
           View Product
         </button>

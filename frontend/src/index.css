@@ -1,8 +1,35 @@
-
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap');
 
-body{
-     font-family: "Montserrat", sans-serif;
+body {
+  font-family: "Montserrat", sans-serif;
+  overflow-x: hidden;
 }
 
 @import "tailwindcss";
+
+/* Global Reset: Remove all text-decoration / underlines from links, buttons, and navigation */
+a, 
+button, 
+.btn, 
+.nav-link,
+a:hover, 
+button:hover, 
+.btn:hover, 
+.nav-link:hover,
+a:focus, 
+button:focus, 
+.btn:focus, 
+.nav-link:focus,
+a:active,
+button:active {
+  text-decoration: none !important;
+}
+
+/* Global rounded border-radius baseline for all buttons and interactive controls */
+button,
+.btn,
+input[type="button"],
+input[type="submit"],
+input[type="reset"] {
+  border-radius: 9999px;
+}

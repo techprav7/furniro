@@ -85,11 +85,11 @@ const Description = ({ product }) => {
   return (
     <div className="w-full overflow-x-hidden flex flex-col items-center justify-center gap-6 px-4 max-w-7xl mx-auto">
       {/* Tabs Headers */}
-      <div className='flex items-center justify-center border-b border-gray-250 w-full pb-4 gap-4 sm:gap-12 flex-wrap'>
+      <div className='flex items-center justify-center border-b border-gray-200 w-full pb-4 gap-2 sm:gap-4 flex-wrap'>
         <button 
           onClick={() => setActiveTab('description')}
-          className={`font-semibold text-lg py-2 px-4 transition-colors duration-200 ${
-            activeTab === 'description' ? "text-[#B88E2F] border-b-2 border-[#B88E2F]" : "text-gray-400 hover:text-gray-600"
+          className={`font-semibold text-base sm:text-lg py-2 px-5 rounded-full transition-all duration-200 ${
+            activeTab === 'description' ? "bg-[#B88E2F] text-white shadow-sm" : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
           }`}
         >
           Description
@@ -97,8 +97,8 @@ const Description = ({ product }) => {
         
         <button 
           onClick={() => setActiveTab('additional')}
-          className={`font-semibold text-lg py-2 px-4 transition-colors duration-200 ${
-            activeTab === 'additional' ? "text-[#B88E2F] border-b-2 border-[#B88E2F]" : "text-gray-400 hover:text-gray-600"
+          className={`font-semibold text-base sm:text-lg py-2 px-5 rounded-full transition-all duration-200 ${
+            activeTab === 'additional' ? "bg-[#B88E2F] text-white shadow-sm" : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
           }`}
         >
           Additional information
@@ -106,8 +106,8 @@ const Description = ({ product }) => {
         
         <button 
           onClick={() => setActiveTab('reviews')}
-          className={`font-semibold text-lg py-2 px-4 transition-colors duration-200 ${
-            activeTab === 'reviews' ? "text-[#B88E2F] border-b-2 border-[#B88E2F]" : "text-gray-400 hover:text-gray-600"
+          className={`font-semibold text-base sm:text-lg py-2 px-5 rounded-full transition-all duration-200 ${
+            activeTab === 'reviews' ? "bg-[#B88E2F] text-white shadow-sm" : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
           }`}
         >
           Reviews [{reviewCount}]
@@ -242,7 +242,7 @@ const Description = ({ product }) => {
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="mt-3 px-6 py-2 bg-[#B88E2F] text-white rounded font-semibold hover:bg-[#a5761f] transition disabled:opacity-50"
+                    className="mt-3 px-8 py-2.5 bg-[#B88E2F] text-white rounded-full font-semibold hover:bg-[#a5761f] transition duration-300 shadow-sm disabled:opacity-50"
                   >
                     {submitting ? "Submitting..." : "Submit Review"}
                   </button>

@@ -466,7 +466,7 @@ const Profile = () => {
                         <button
                           type="submit"
                           disabled={savingAddress}
-                          className="bg-[#B88E2F] hover:bg-[#a5761f] text-white px-6 py-3 rounded font-bold text-sm shadow-md transition duration-200 flex items-center gap-2 w-full sm:w-auto justify-center disabled:opacity-50"
+                          className="bg-[#B88E2F] hover:bg-[#a5761f] text-white px-8 py-3 rounded-full font-bold text-sm shadow-md transition duration-200 flex items-center gap-2 w-full sm:w-auto justify-center disabled:opacity-50"
                         >
                           {savingAddress ? (
                             <>Saving... <RefreshCw className="w-4 h-4 animate-spin" /></>
@@ -608,7 +608,7 @@ const Profile = () => {
                                 <td className="p-3 text-right">
                                   <Link
                                     to={`/payments/${p._id}`}
-                                    className="text-[#B88E2F] hover:text-[#9e761c] font-bold flex items-center justify-end gap-0.5 hover:underline"
+                                    className="text-[#B88E2F] hover:text-[#9e761c] font-bold flex items-center justify-end gap-0.5 transition-colors"
                                   >
                                     View Details <ChevronRight className="w-3.5 h-3.5" />
                                   </Link>

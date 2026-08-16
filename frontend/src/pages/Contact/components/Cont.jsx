@@ -151,7 +151,7 @@ const Cont = () => {
           <button
             type="submit"
             disabled={loading}
-            className="mt-4 py-2 px-10 border-2 border-[#B88E2F] text-[#B88E2F] font-bold hover:bg-[#B88E2F] hover:text-white transition duration-300 disabled:opacity-50 self-start"
+            className="mt-4 py-3 px-12 border-2 border-[#B88E2F] text-[#B88E2F] font-bold hover:bg-[#B88E2F] hover:text-white transition duration-300 rounded-full shadow-sm disabled:opacity-50 self-start sm:self-auto"
           >
             {loading ? "Sending..." : "Submit"}
           </button>

@@ -46,7 +46,7 @@ function InspirationSlider() {
         </p>
         <button
           onClick={() => navigate("/shop")}
-          className="bg-[#B88E2F] text-white px-6 py-2 font-semibold hover:bg-[#a5761f] transition duration-300"
+          className="bg-[#B88E2F] text-white px-8 py-3 rounded-full font-semibold hover:bg-[#a5761f] transition duration-300 shadow-md"
         >
           Explore More
         </button>

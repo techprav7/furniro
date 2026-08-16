@@ -5,11 +5,9 @@ import Navbar from "react-bootstrap/Navbar";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import FavoriteBorderOutlinedIcon from "@mui/icons-material/FavoriteBorderOutlined";
 import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import "../css/Navbar.css";
-import { cloudinaryAssets } from "../cloudinaryAssets";
-const logoImg = cloudinaryAssets["Logo.png"];
 
 import { useCartStore, useWishlistStore } from "../store/store";
 import { formatPrice } from "../data/productData";
@@ -18,9 +16,13 @@ import { ShoppingBag, CreditCard, MapPin } from "lucide-react";
 
 function NavbarComponent() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isSignedIn } = useAuth();
   const { items: cartItems, getTotal } = useCartStore();
   const { items: wishlistItems } = useWishlistStore();
+
+  // Mobile menu expanded state
+  const [expanded, setExpanded] = useState(false);
 
   // Cart
   const [showCartPopup, setShowCartPopup] = useState(false);
@@ -61,47 +63,135 @@ function NavbarComponent() {
       navigate(`/shop?search=${encodeURIComponent(searchVal.trim())}`);
       setSearchVal("");
       setShowSearchPopup(false);
+      setExpanded(false);
     }
   };
 
+  const navLinks = [
+    { name: "Home", path: "/" },
+    { name: "Shop", path: "/shop" },
+    { name: "Contact", path: "/contact" },
+  ];
+
+  const isRouteActive = (path) => {
+    if (path === "/") {
+      return location.pathname === "/" || location.pathname === "/home";
+    }
+    return location.pathname.startsWith(path);
+  };
+
   return (
-    <Navbar expand="lg" className="bg-white py-3 shadow-sm position-sticky top-0 z-100">
+    <Navbar 
+      expand="lg" 
+      expanded={expanded} 
+      onToggle={(isExpanded) => setExpanded(isExpanded)}
+      className="bg-white py-3 shadow-sm position-sticky top-0 z-100"
+    >
       <Container fluid className="px-4">
-        <div className="d-flex align-items-center justify-content-between w-100">
-          <Navbar.Brand as={Link} to="/" className="d-flex align-items-center">
-            <img
-              src={logoImg}
-              alt="Furniro Logo"
-              style={{ height: "32px", width: "auto" }}
-            />
+        <div className="d-flex align-items-center justify-content-between w-100 d-lg-none">
+          <Navbar.Brand as={Link} to="/" onClick={() => setExpanded(false)} className="d-flex align-items-center">
+            <span
+              style={{
+                fontFamily: "'Outfit', 'Montserrat', sans-serif",
+                fontSize: "24px",
+                fontWeight: "600",
+                letterSpacing: "4px",
+                color: "#B88E2F",
+                textDecoration: "none"
+              }}
+            >
+              FURNIRO.
+            </span>
           </Navbar.Brand>
           <Navbar.Toggle aria-controls="basic-navbar-nav" />
         </div>
 
         <Navbar.Collapse id="basic-navbar-nav" className="mt-3 mt-lg-0">
-          <div className="d-flex flex-column flex-lg-row align-items-center w-100">
-            <div className="d-none d-lg-flex justify-content-start flex-grow-1" />
-
-            <div className="position-absolute start-50 translate-middle-x d-none d-lg-flex">
-              <Nav className="flex-row text-center gap-4">
-                {["Home", "Shop", "Blog", "Contact"].map((item) => (
-                  <Nav.Link
-                    key={item}
-                    as={Link}
-                    to={`/${item === "Home" ? "" : item.toLowerCase()}`}
-                    className="text-dark fw-semibold nav-hover"
-                  >
-                    {item}
-                  </Nav.Link>
-                ))}
-              </Nav>
+          <div className="d-flex flex-column flex-lg-row align-items-center justify-content-between w-100 position-relative">
+            {/* Desktop Brand */}
+            <div className="d-none d-lg-flex align-items-center flex-1 justify-content-start">
+              <Navbar.Brand as={Link} to="/" className="d-flex align-items-center me-0">
+                <span
+                  style={{
+                    fontFamily: "'Outfit', 'Montserrat', sans-serif",
+                    fontSize: "24px",
+                    fontWeight: "600",
+                    letterSpacing: "4px",
+                    color: "#B88E2F",
+                    textDecoration: "none"
+                  }}
+                >
+                  FURNIRO.
+                </span>
+              </Navbar.Brand>
             </div>
 
-            <div className="d-flex flex-column flex-lg-row align-items-center justify-content-end flex-grow-1 order-3 gap-3 position-relative">
-              <div className="d-flex gap-3 align-items-center">
+            {/* Desktop Navigation Links (Centered Animated Pill Track) */}
+            <div className="d-none d-lg-flex align-items-center justify-content-center">
+              <div className="nav-pill-track">
+                {navLinks.map((item) => {
+                  const active = isRouteActive(item.path);
+                  return (
+                    <Link
+                      key={item.name}
+                      to={item.path}
+                      className={`nav-tab-btn ${active ? "is-active" : ""}`}
+                    >
+                      {active && (
+                        <motion.div
+                          layoutId="activeNavTab"
+                          className="position-absolute top-0 start-0 w-100 h-100 rounded-full"
+                          style={{
+                            backgroundColor: "#B88E2F",
+                            boxShadow: "0 2px 10px rgba(184, 142, 47, 0.35)",
+                            zIndex: 1,
+                          }}
+                          transition={{
+                            type: "spring",
+                            stiffness: 420,
+                            damping: 32,
+                          }}
+                        />
+                      )}
+                      <span style={{ position: "relative", zIndex: 2 }}>
+                        {item.name}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Mobile Navigation Links (Visible only on < lg) */}
+            <div className="d-flex d-lg-none flex-column align-items-center w-100 my-3 py-2 border-b border-gray-200">
+              <div className="d-flex flex-column text-center w-100 gap-2 px-2">
+                {navLinks.map((item) => {
+                  const active = isRouteActive(item.path);
+                  return (
+                    <Link
+                      key={item.name}
+                      to={item.path}
+                      onClick={() => setExpanded(false)}
+                      className={`position-relative py-2.5 px-4 rounded-full text-base font-semibold transition-all duration-200 ${
+                        active
+                          ? "bg-[#B88E2F] text-white shadow-sm"
+                          : "text-gray-800 hover:bg-[#faf3ea] hover:text-[#B88E2F]"
+                      }`}
+                      style={{ textDecoration: "none" }}
+                    >
+                      {item.name}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Right Icons and Auth Actions */}
+            <div className="d-flex flex-column flex-lg-row align-items-center justify-content-end flex-1 gap-3 position-relative w-100 w-lg-auto">
+              <div className="d-flex gap-4 align-items-center my-2 my-lg-0">
 
                 {/* 🔍 Search */}
-                <span
+                <div
                   className="text-dark nav-icon-hover position-relative"
                   onClick={toggleSearchPopup}
                   style={{ cursor: "pointer" }}
@@ -115,31 +205,31 @@ function NavbarComponent() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
                         transition={{ duration: 0.2 }}
-                        className="position-absolute end-0 mt-2 p-3 bg-light border rounded shadow-sm"
-                        style={{ width: "300px", zIndex: 999 }}
+                        className="position-absolute end-0 mt-2 p-3 bg-white border border-gray-200 rounded-2xl shadow-lg"
+                        style={{ width: "min(320px, 90vw)", zIndex: 999 }}
+                        onClick={(e) => e.stopPropagation()}
                       >
                         <input
                           type="text"
                           placeholder="Search for products..."
-                          className="form-control"
+                          className="form-control rounded-full px-3 py-2 text-sm"
                           value={searchVal}
                           onChange={(e) => setSearchVal(e.target.value)}
                           onKeyDown={handleSearchSubmit}
                           style={{
                             borderColor: "#B88E2F",
                             outline: "none",
-                            boxShadow: "0 0 0 2px rgba(184, 142, 47, 0.3)",
+                            boxShadow: "0 0 0 2px rgba(184, 142, 47, 0.2)",
                           }}
                           autoFocus
-                          onClick={(e) => e.stopPropagation()}
                         />
                       </motion.div>
                     )}
                   </AnimatePresence>
-                </span>
+                </div>
 
                 {/* 💖 Wishlist */}
-                <span
+                <div
                   className="text-dark nav-icon-hover position-relative"
                   onClick={toggleWishlistPopup}
                   style={{ cursor: "pointer" }}
@@ -158,42 +248,51 @@ function NavbarComponent() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
                         transition={{ duration: 0.2 }}
-                        className="position-absolute end-0 mt-2 px-8 py-8 bg-light border rounded shadow-sm"
-                        style={{ width: "370px", zIndex: 999 }}
+                        className="position-absolute end-0 mt-2 p-4 bg-white border border-gray-200 rounded-2xl shadow-lg"
+                        style={{ width: "min(360px, 90vw)", zIndex: 999 }}
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        <h3 className="d-block mb-1">Your Wishlist</h3>
-                        <hr />
+                        <h3 className="text-lg font-bold mb-2 text-gray-800">Your Wishlist</h3>
+                        <hr className="my-2 border-gray-200" />
                         {wishlistItems.length > 0 ? (
                           <>
-                            <ul className="list-unstyled mb-2">
+                            <ul className="list-unstyled mb-3 max-h-[220px] overflow-y-auto space-y-2 pr-1">
                               {wishlistItems.map((item) => (
                                 <li
                                   key={item._id}
-                                  className="d-flex align-items-center mb-3"
-                                  style={{ gap: "12px" }}
+                                  className="d-flex align-items-center gap-3 p-1 hover:bg-gray-50 rounded-lg"
                                 >
-                                  <div className="flex-grow-1">
-                                    <p className="mb-0 fw-semibold">{item.name}</p>
+                                  {item.image && (
+                                    <img src={item.image} alt={item.name} className="w-10 h-10 object-cover rounded-lg" />
+                                  )}
+                                  <div className="flex-grow-1 min-w-0">
+                                    <p className="mb-0 font-semibold text-gray-800 text-sm truncate">{item.name}</p>
                                     <small className="text-muted">{formatPrice(item.price)}</small>
                                   </div>
                                 </li>
                               ))}
                             </ul>
-                            <hr />
-                            <div className="flex gap-4">
-                              <Link to="/wishlist" className="btn btn-sm btn-dark" style={{ backgroundColor: "#B88E2F", borderColor: "#B88E2F" }}>View All</Link>
+                            <div className="d-flex gap-2">
+                              <Link 
+                                to="/wishlist" 
+                                onClick={() => { setShowWishlistPopup(false); setExpanded(false); }}
+                                className="btn btn-sm text-white w-100 font-semibold py-2 rounded-full" 
+                                style={{ backgroundColor: "#B88E2F", borderColor: "#B88E2F" }}
+                              >
+                                View All
+                              </Link>
                             </div>
                           </>
                         ) : (
-                          <p className="mb-0 text-muted">No favorites yet 💔</p>
+                          <p className="mb-0 text-muted text-sm py-2">No favorites yet 💔</p>
                         )}
                       </motion.div>
                     )}
                   </AnimatePresence>
-                </span>
+                </div>
 
                 {/* 🛒 Cart */}
-                <span
+                <div
                   className="text-dark nav-icon-hover position-relative"
                   onClick={toggleCartPopup}
                   style={{ cursor: "pointer" }}
@@ -212,22 +311,25 @@ function NavbarComponent() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
                         transition={{ duration: 0.2 }}
-                        className="position-absolute end-0 mt-2 px-8 py-8 bg-light border rounded shadow-sm"
-                        style={{ width: "370px", zIndex: 999 }}
+                        className="position-absolute end-0 mt-2 p-4 bg-white border border-gray-200 rounded-2xl shadow-lg"
+                        style={{ width: "min(360px, 90vw)", zIndex: 999 }}
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        <h3 className="d-block mb-1">Shopping Cart</h3>
-                        <hr />
+                        <h3 className="text-lg font-bold mb-2 text-gray-800">Shopping Cart</h3>
+                        <hr className="my-2 border-gray-200" />
                         {cartItems.length > 0 ? (
                           <>
-                            <ul className="list-unstyled mb-2" style={{ maxHeight: "200px", overflowY: "auto" }}>
+                            <ul className="list-unstyled mb-3 max-h-[200px] overflow-y-auto space-y-2 pr-1">
                               {cartItems.map((item) => (
                                 <li
                                   key={item._id}
-                                  className="d-flex align-items-center mb-3"
-                                  style={{ gap: "12px" }}
+                                  className="d-flex align-items-center gap-3 p-1 hover:bg-gray-50 rounded-lg"
                                 >
-                                  <div className="flex-grow-1">
-                                    <p className="mb-0 fw-semibold">{item.name}</p>
+                                  {item.image && (
+                                    <img src={item.image} alt={item.name} className="w-10 h-10 object-cover rounded-lg" />
+                                  )}
+                                  <div className="flex-grow-1 min-w-0">
+                                    <p className="mb-0 font-semibold text-gray-800 text-sm truncate">{item.name}</p>
                                     <small className="text-muted">
                                       {item.quantity} × {formatPrice(item.price)}
                                     </small>
@@ -235,39 +337,53 @@ function NavbarComponent() {
                                 </li>
                               ))}
                             </ul>
-                            <div className="flex gap-4 mt-8">
-                              <p>Subtotal</p>
-                              <p className="text-[#B88E2F]">{formatPrice(getTotal())}</p>
+                            <div className="d-flex justify-content-between mb-3 text-sm font-semibold">
+                              <span className="text-gray-600">Subtotal</span>
+                              <span className="text-[#B88E2F]">{formatPrice(getTotal())}</span>
                             </div>
-                            <hr />
-                            <div className="flex gap-4">
-                              <Link to="/cart" className="btn btn-sm btn-dark" style={{ backgroundColor: "#B88E2F", borderColor: "#B88E2F" }}>Cart</Link>
-                              <Link to="/checkout" className="btn btn-sm btn-dark" style={{ backgroundColor: "#B88E2F", borderColor: "#B88E2F" }}>Checkout</Link>
-                              <Link to="/comparison" className="btn btn-sm btn-dark" style={{ backgroundColor: "#B88E2F", borderColor: "#B88E2F" }}>Comparison</Link>
+                            <div className="d-flex gap-2">
+                              <Link 
+                                to="/cart" 
+                                onClick={() => { setShowCartPopup(false); setExpanded(false); }}
+                                className="btn btn-sm text-white flex-1 font-semibold py-2 rounded-full" 
+                                style={{ backgroundColor: "#B88E2F", borderColor: "#B88E2F" }}
+                              >
+                                Cart
+                              </Link>
+                              <Link 
+                                to="/checkout" 
+                                onClick={() => { setShowCartPopup(false); setExpanded(false); }}
+                                className="btn btn-sm text-white flex-1 font-semibold py-2 rounded-full" 
+                                style={{ backgroundColor: "#3A3A3A", borderColor: "#3A3A3A" }}
+                              >
+                                Checkout
+                              </Link>
                             </div>
                           </>
                         ) : (
-                          <p className="mb-0 text-muted">Your cart is empty</p>
+                          <p className="mb-0 text-muted text-sm py-2">Your cart is empty</p>
                         )}
                       </motion.div>
                     )}
                   </AnimatePresence>
-                </span>
+                </div>
               </div>
 
               {/* Auth Buttons */}
-              <div className="d-flex gap-2 flex-nowrap align-items-center">
+              <div className="d-flex gap-2 flex-nowrap align-items-center mt-2 mt-lg-0">
                 <SignedOut>
                   <Link
                     to="/login"
-                    className="btn btn-outline-dark px-4 py-1"
+                    onClick={() => setExpanded(false)}
+                    className="btn btn-outline-dark px-4 py-1.5 rounded-full font-semibold text-sm transition-all"
                     style={{ whiteSpace: "nowrap" }}
                   >
                     Sign In
                   </Link>
                   <Link
                     to="/register"
-                    className="btn btn-dark px-3 py-1"
+                    onClick={() => setExpanded(false)}
+                    className="btn btn-dark px-4 py-1.5 rounded-full font-semibold text-sm transition-all text-white"
                     style={{
                       backgroundColor: "#B88E2F",
                       borderColor: "#B88E2F",
@@ -308,4 +424,3 @@ function NavbarComponent() {
 }
 
 export default NavbarComponent;
-

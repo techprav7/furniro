@@ -10,8 +10,6 @@ import Profile from "../pages/Profile/Profile";
 import Single_Product from "../pages/Single_Product/Single_Product";
 import Product_Comparison from "../pages/Product_Comparison/Product_Comparison";
 import CheckOut from "../pages/CheckOut/CheckOut";
-import Blog from "../pages/Blog/Blog";
-import BlogDetail from "../pages/BlogDetail/BlogDetail";
 import Wishlist from "../pages/Wishlist/Wishlist";
 import OrderConfirmation from "../pages/OrderConfirmation/OrderConfirmation";
 import OrderHistory from "../pages/OrderHistory/OrderHistory";
@@ -60,8 +58,6 @@ const AppRoutes = () => {
         <Route path="product/:id" element={<Single_Product />} />
         <Route path="comparison" element={<Product_Comparison />} />
         <Route path="checkout" element={<CheckOut />} />
-        <Route path="blog" element={<Blog />} />
-        <Route path="blog/:id" element={<BlogDetail />} />
         <Route path="wishlist" element={<Wishlist />} />
         <Route path="order-confirmation" element={<OrderConfirmation />} />
         <Route path="orders" element={<OrderHistory />} />

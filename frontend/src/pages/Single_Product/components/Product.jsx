@@ -208,7 +208,7 @@ const ProductDetail = ({ product }) => {
                     key={sz.label}
                     onClick={() => sz.available && setSelectedSize(sz.label)}
                     disabled={!sz.available}
-                    className={`rounded px-3 py-2 min-w-[40px] flex justify-center items-center font-medium text-sm transition duration-200 border ${
+                    className={`rounded-lg px-3 py-2 min-w-[40px] flex justify-center items-center font-medium text-sm transition duration-200 border ${
                       !sz.available
                         ? "bg-gray-200 text-gray-400 cursor-not-allowed border-gray-200 opacity-50 line-through"
                         : selectedSize === sz.label 
@@ -259,7 +259,7 @@ const ProductDetail = ({ product }) => {
 
           {/* Quantity and Actions */}
           <div className="buttonsdiv flex flex-wrap gap-3 mt-6 items-center">
-            <div className="quantitydiv flex justify-center items-center gap-4 border border-gray-300 rounded px-3 py-2 bg-white">
+            <div className="quantitydiv flex justify-center items-center gap-4 border border-gray-300 rounded-full px-4 py-2 bg-white">
               <button 
                 onClick={() => handleQuantityChange(-1)}
                 className="font-bold text-lg text-gray-600 hover:text-black transition"
@@ -280,7 +280,7 @@ const ProductDetail = ({ product }) => {
             <button 
               onClick={handleAddToCart}
               disabled={isOutOfStock}
-              className={`px-5 py-2 border-2 border-black rounded font-semibold transition duration-300 flex items-center gap-2 ${
+              className={`px-6 py-2.5 border-2 border-black rounded-full font-semibold transition duration-300 flex items-center gap-2 ${
                 isOutOfStock 
                   ? "border-gray-300 text-gray-400 bg-gray-55 cursor-not-allowed opacity-60" 
                   : "hover:bg-black hover:text-white"
@@ -293,7 +293,7 @@ const ProductDetail = ({ product }) => {
             <button 
               onClick={handleBuyNow}
               disabled={isOutOfStock}
-              className={`px-5 py-2 text-white rounded font-semibold transition duration-300 shadow-md ${
+              className={`px-6 py-2.5 text-white rounded-full font-semibold transition duration-300 shadow-md ${
                 isOutOfStock 
                   ? "bg-gray-400 cursor-not-allowed opacity-60" 
                   : "bg-[#B88E2F] hover:bg-[#a5761f]"
@@ -304,7 +304,7 @@ const ProductDetail = ({ product }) => {
 
             <button 
               onClick={handleCompare}
-              className={`px-4 py-2 border rounded font-semibold transition duration-300 flex items-center gap-1 text-sm ${
+              className={`px-5 py-2.5 border rounded-full font-semibold transition duration-300 flex items-center gap-1 text-sm ${
                 isCompared 
                   ? "bg-[#B88E2F] border-[#B88E2F] text-white" 
                   : "border-gray-400 hover:bg-gray-50 text-gray-800"
@@ -315,7 +315,7 @@ const ProductDetail = ({ product }) => {
 
             <button 
               onClick={handleWishlistToggle}
-              className="p-2 border border-gray-300 rounded hover:bg-gray-50 text-gray-600 transition"
+              className="p-2.5 border border-gray-300 rounded-full hover:bg-gray-50 text-gray-600 transition"
               aria-label="Add to wishlist"
             >
               <Heart className={`w-5 h-5 ${isLiked ? "fill-red-500 text-red-500" : ""}`} />

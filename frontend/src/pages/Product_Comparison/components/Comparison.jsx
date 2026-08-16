@@ -128,7 +128,7 @@ const Comparison = () => {
             <div key={item._id}>
               <button 
                 onClick={() => handleAddToCart(item)}
-                className="w-full bg-[#B88E2F] text-white py-2.5 px-4 rounded hover:bg-[#a17924] transition duration-300 font-semibold shadow-sm text-sm"
+                className="w-full bg-[#B88E2F] text-white py-2.5 px-4 rounded-full hover:bg-[#a17924] transition duration-300 font-semibold shadow-sm text-sm"
               >
                 Add To Cart
               </button>

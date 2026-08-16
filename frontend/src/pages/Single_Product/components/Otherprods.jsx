@@ -44,7 +44,7 @@ const Otherprods = ({ product }) => {
       <div className="bottombutton flex justify-center mt-10">
         <button 
           onClick={handleShowMore}
-          className="py-3 px-10 border-2 border-[#B88E2F] text-[#B88E2F] font-bold hover:bg-[#B88E2F] hover:text-white transition duration-300 rounded"
+          className="py-3 px-10 border-2 border-[#B88E2F] text-[#B88E2F] font-bold hover:bg-[#B88E2F] hover:text-white transition duration-300 rounded-full shadow-sm"
         >
           Show More
         </button>

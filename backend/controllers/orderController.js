@@ -407,6 +407,10 @@ exports.cancelOrder = async (req, res) => {
           });
           console.log("✅ Razorpay refund initiated:", refund.id);
           
+          order.refundId = refund.id;
+          order.refundAmount = order.totalAmount;
+          await order.save();
+
           await Payment.findOneAndUpdate(
             { razorpayOrderId: order.razorpayOrderId },
             { 
@@ -419,8 +423,11 @@ exports.cancelOrder = async (req, res) => {
           );
         } catch (rzpErr) {
           console.error("❌ Razorpay refund failed:", rzpErr);
-          // Fallback to mock refund if Razorpay API call fails (e.g. mock credentials)
           const mockRefundId = `mock_refund_${Date.now()}`;
+          order.refundId = mockRefundId;
+          order.refundAmount = order.totalAmount;
+          await order.save();
+
           await Payment.findOneAndUpdate(
             { razorpayOrderId: order.razorpayOrderId },
             { 
@@ -435,6 +442,10 @@ exports.cancelOrder = async (req, res) => {
       } else {
         // Mock refund in sandbox/mock mode
         const mockRefundId = `mock_refund_${Date.now()}`;
+        order.refundId = mockRefundId;
+        order.refundAmount = order.totalAmount;
+        await order.save();
+
         await Payment.findOneAndUpdate(
           { razorpayOrderId: order.razorpayOrderId },
           { 

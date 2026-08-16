@@ -30,7 +30,7 @@ const FilterBar = ({
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="border border-gray-300 rounded px-2 py-1 bg-white text-gray-700 cursor-pointer focus:outline-none focus:ring-1 focus:ring-gray-300"
+              className="border border-gray-300 rounded-full px-3 py-1 bg-white text-gray-700 cursor-pointer focus:outline-none focus:ring-1 focus:ring-gray-300"
             >
               {displayCategories.map((cat) => (
                 <option key={cat} value={cat}>
@@ -42,7 +42,7 @@ const FilterBar = ({
 
           <div className="w-[1px] h-6 bg-gray-400 mx-2 hidden sm:block" />
           <div className="pt-1">
-            <p className="text-gray-700">
+            <p className="text-gray-700 mb-0">
               Showing <strong>{startResult}–{endResult}</strong> of <strong>{totalResults}</strong> results
             </p>
           </div>
@@ -61,7 +61,7 @@ const FilterBar = ({
                 const val = parseInt(e.target.value, 10);
                 setItemsPerPage(isNaN(val) || val <= 0 ? 16 : val);
               }}
-              className="w-16 text-center border border-gray-300 rounded px-2 py-1 text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-gray-300"
+              className="w-16 text-center border border-gray-300 rounded-full px-2 py-1 text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-gray-300"
             />
           </div>
 
@@ -70,7 +70,7 @@ const FilterBar = ({
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="border border-gray-300 px-3 py-1 rounded bg-white text-gray-700 cursor-pointer focus:outline-none focus:ring-1 focus:ring-gray-300"
+              className="border border-gray-300 px-3 py-1 rounded-full bg-white text-gray-700 cursor-pointer focus:outline-none focus:ring-1 focus:ring-gray-300"
             >
               <option value="Default">Default</option>
               <option value="price-low-high">Price: Low to High</option>

@@ -159,7 +159,7 @@ function CategorySection() {
 
             <button
               onClick={() => navigate(`/product/${activeSlide.productId}`)}
-              className="bg-[#B88E2F] text-white px-8 py-3.5 font-bold hover:bg-[#a5761f] transition-all duration-300 shadow-md hover:shadow-lg rounded tracking-wider text-xs sm:text-sm uppercase"
+              className="bg-[#B88E2F] text-white px-8 py-3.5 font-bold hover:bg-[#a5761f] transition-all duration-300 shadow-md hover:shadow-lg rounded-full tracking-wider text-xs sm:text-sm uppercase"
             >
               Buy Now
             </button>

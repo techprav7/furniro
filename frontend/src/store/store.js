@@ -186,23 +186,33 @@ export const useOrderStore = create((set, get) => ({
       
       const formattedOrders = (data.orders || []).map(order => {
         let displayStatus = order.status;
-        if (order.status === "pending" || order.status === "paid") {
-          displayStatus = "Order Placed";
-        } else if (order.status === "failed") {
-          displayStatus = "Order Failed";
-        } else {
-          displayStatus = order.status.charAt(0).toUpperCase() + order.status.slice(1);
-        }
+        const statusMap = {
+          pending: "Order Placed",
+          paid: "Order Placed",
+          dispatched: "Dispatched",
+          shipped: "Shipped",
+          out_for_delivery: "Out for Delivery",
+          delivered: "Delivered",
+          cancelled: "Cancelled",
+          return_requested: "Return Requested",
+          returned: "Returned",
+          exchange_requested: "Replace Requested",
+          replaced: "Replaced",
+          refunded: "Refunded",
+          failed: "Order Failed"
+        };
+        displayStatus = statusMap[order.status] || (order.status ? order.status.replace("_", " ").toUpperCase() : "Order Placed");
 
         return {
           id: order.razorpayOrderId || order._id,
+          rawStatus: order.status,
           date: new Date(order.createdAt).toLocaleDateString("en-US", {
             year: "numeric",
             month: "long",
             day: "numeric",
           }),
           status: displayStatus,
-          items: order.items.map(item => ({
+          items: (order.items || []).map(item => ({
             ...item,
             _id: item.productId // map to frontend expected _id field
           })),

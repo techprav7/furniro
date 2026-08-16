@@ -33,7 +33,7 @@ const Otherprods = ({ products, currentPage, setCurrentPage, totalPages }) => {
           <button
             onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
             disabled={currentPage === 1}
-            className={`px-4 py-2 rounded transition duration-300 ${
+            className={`px-5 py-2 rounded-full transition duration-300 font-medium ${
               currentPage === 1
                 ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                 : "bg-[#f3eee7] text-black hover:bg-[#B88E2F] hover:text-white"
@@ -46,7 +46,7 @@ const Otherprods = ({ products, currentPage, setCurrentPage, totalPages }) => {
             <button
               key={page}
               onClick={() => setCurrentPage(page)}
-              className={`px-4 py-2 rounded transition duration-300 font-semibold ${
+              className={`w-10 h-10 rounded-full transition duration-300 font-semibold flex items-center justify-center ${
                 currentPage === page
                   ? "bg-[#B88E2F] text-white shadow"
                   : "bg-[#f3eee7] text-black hover:bg-[#B88E2F] hover:text-white"
@@ -59,7 +59,7 @@ const Otherprods = ({ products, currentPage, setCurrentPage, totalPages }) => {
           <button
             onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
             disabled={currentPage === totalPages}
-            className={`px-4 py-2 rounded transition duration-300 ${
+            className={`px-5 py-2 rounded-full transition duration-300 font-medium ${
               currentPage === totalPages
                 ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                 : "bg-[#f3eee7] text-black hover:bg-[#B88E2F] hover:text-white"

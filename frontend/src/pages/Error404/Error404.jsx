@@ -54,7 +54,7 @@ const Error404 = () => {
         transition={{ delay: 0.6, duration: 0.5 }}
       >
         <Link to="/" className="no-underline">
-          <button className="py-2 px-8 border-2 border-[#B88E2F] text-[#B88E2F] font-bold hover:bg-[#B88E2F] hover:text-white transition duration-300 rounded-md">
+          <button className="py-2.5 px-8 border-2 border-[#B88E2F] text-[#B88E2F] font-bold hover:bg-[#B88E2F] hover:text-white transition duration-300 rounded-full shadow-sm">
             Go Home
           </button>
         </Link>

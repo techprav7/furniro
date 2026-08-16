@@ -137,14 +137,38 @@ const OrderDetail = () => {
     const colors = {
       pending: "bg-amber-100 text-amber-800 border-amber-200",
       paid: "bg-amber-100 text-amber-800 border-amber-200",
-      failed: "bg-red-100 text-red-800 border-red-200",
+      dispatched: "bg-blue-100 text-blue-800 border-blue-200",
       shipped: "bg-indigo-100 text-indigo-800 border-indigo-200",
+      out_for_delivery: "bg-purple-100 text-purple-800 border-purple-200",
       delivered: "bg-green-100 text-green-800 border-green-200",
       cancelled: "bg-gray-100 text-gray-800 border-gray-200",
       return_requested: "bg-purple-100 text-purple-800 border-purple-200",
+      returned: "bg-rose-100 text-rose-800 border-rose-200",
       exchange_requested: "bg-pink-100 text-pink-800 border-pink-200",
+      replaced: "bg-teal-100 text-teal-800 border-teal-200",
+      refunded: "bg-emerald-100 text-emerald-800 border-emerald-200",
+      failed: "bg-red-100 text-red-800 border-red-200",
     };
     return colors[status] || "bg-gray-100 text-gray-800 border-gray-200";
+  };
+
+  const getStatusLabel = (status) => {
+    const labels = {
+      pending: "ORDER PLACED",
+      paid: "ORDER PLACED",
+      dispatched: "DISPATCHED",
+      shipped: "SHIPPED",
+      out_for_delivery: "OUT FOR DELIVERY",
+      delivered: "DELIVERED",
+      cancelled: "CANCELLED",
+      return_requested: "RETURN REQUESTED",
+      returned: "RETURNED",
+      exchange_requested: "REPLACE REQUESTED",
+      replaced: "REPLACED",
+      refunded: "REFUNDED",
+      failed: "ORDER FAILED"
+    };
+    return labels[status] || (status ? status.replace("_", " ").toUpperCase() : "ORDER PLACED");
   };
 
   if (loading) {
@@ -168,7 +192,7 @@ const OrderDetail = () => {
           <p className="text-gray-500 mb-6">{error || "The requested order could not be located."}</p>
           <Link
             to="/orders"
-            className="inline-flex items-center gap-2 bg-[#B88E2F] text-white px-6 py-3 rounded hover:bg-[#a5761f] transition font-semibold"
+            className="inline-flex items-center gap-2 bg-[#B88E2F] text-white px-6 py-3 rounded-full hover:bg-[#a5761f] transition font-semibold"
           >
             <ArrowLeft className="w-4 h-4" /> Back to My Orders
           </Link>
@@ -197,10 +221,7 @@ const OrderDetail = () => {
                 Order ID: <span className="font-mono">{order.razorpayOrderId || order._id}</span>
               </h1>
               <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(order.status)}`}>
-                {order.status === "pending" ? "ORDER PLACED" : 
-                 order.status === "paid" ? "ORDER PLACED" : 
-                 order.status === "failed" ? "ORDER FAILED" : 
-                 order.status.replace("_", " ").toUpperCase()}
+                {getStatusLabel(order.status)}
               </span>
             </div>
             <p className="text-gray-500 text-sm mt-1 flex items-center gap-1.5">
@@ -216,7 +237,7 @@ const OrderDetail = () => {
             {["paid", "pending"].includes(order.status) && (
               <button
                 onClick={() => setActiveModal("cancel")}
-                className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-4 py-2.5 rounded font-semibold text-sm transition"
+                className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-5 py-2.5 rounded-full font-semibold text-sm transition"
               >
                 Cancel Order
               </button>
@@ -226,13 +247,13 @@ const OrderDetail = () => {
               <>
                 <button
                   onClick={() => setActiveModal("return")}
-                  className="bg-purple-50 hover:bg-purple-100 text-purple-600 border border-purple-200 px-4 py-2.5 rounded font-semibold text-sm transition"
+                  className="bg-purple-50 hover:bg-purple-100 text-purple-600 border border-purple-200 px-5 py-2.5 rounded-full font-semibold text-sm transition"
                 >
                   Return Items
                 </button>
                 <button
                   onClick={() => setActiveModal("exchange")}
-                  className="bg-pink-50 hover:bg-pink-100 text-pink-600 border border-pink-200 px-4 py-2.5 rounded font-semibold text-sm transition"
+                  className="bg-pink-50 hover:bg-pink-100 text-pink-600 border border-pink-200 px-5 py-2.5 rounded-full font-semibold text-sm transition"
                 >
                   Exchange Items
                 </button>
@@ -242,7 +263,7 @@ const OrderDetail = () => {
             <button
               onClick={handleReorder}
               disabled={submittingAction}
-              className="bg-[#B88E2F] hover:bg-[#a5761f] text-white px-5 py-2.5 rounded font-semibold text-sm transition flex items-center gap-2 disabled:opacity-50"
+              className="bg-[#B88E2F] hover:bg-[#a5761f] text-white px-6 py-2.5 rounded-full font-semibold text-sm transition flex items-center gap-2 shadow-sm disabled:opacity-50"
             >
               <RefreshCw className={`w-4 h-4 ${submittingAction ? 'animate-spin' : ''}`} />
               Reorder Items
@@ -250,20 +271,28 @@ const OrderDetail = () => {
           </div>
         </div>
 
-        {/* Delivery Timeline Card */}
-        {order.status !== "failed" && (
+        {/* 5-Stage Shipment & Delivery Tracker */}
+        {!["failed", "cancelled", "refunded", "returned", "replaced"].includes(order.status) && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-150 p-6 mb-6">
-            <h3 className="text-sm font-bold text-gray-800 mb-6 flex items-center gap-2">
-              <Truck className="w-4 h-4 text-[#B88E2F]" /> Shipment & Delivery Tracker
-            </h3>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-2">
+              <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2 mb-0">
+                <Truck className="w-4 h-4 text-[#B88E2F]" /> Shipment & Delivery Tracker
+              </h3>
+              {order.courierPartner && (
+                <span className="text-xs bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full font-medium">
+                  Carrier: <strong>{order.courierPartner}</strong> {order.trackingNumber && `(#${order.trackingNumber})`}
+                </span>
+              )}
+            </div>
             
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 relative">
               <div className="absolute left-8 right-8 top-1/2 -translate-y-1/2 h-1 bg-gray-200 hidden md:block z-0" />
               
-              <div className="flex items-center md:flex-col gap-3 md:gap-2 z-10 bg-white pr-4 md:pr-0 md:w-1/4 text-left md:text-center">
+              {/* Step 1: Order Placed */}
+              <div className="flex items-center md:flex-col gap-3 md:gap-2 z-10 bg-white pr-2 md:pr-0 md:w-1/5 text-left md:text-center">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs border ${
-                  ["paid", "pending", "shipped", "delivered"].includes(order.status)
-                    ? "bg-[#B88E2F] border-[#B88E2F] text-white"
+                  ["paid", "pending", "dispatched", "shipped", "out_for_delivery", "delivered"].includes(order.status)
+                    ? "bg-[#B88E2F] border-[#B88E2F] text-white shadow-sm"
                     : "bg-gray-100 border-gray-300 text-gray-500"
                 }`}>
                   1
@@ -274,13 +303,29 @@ const OrderDetail = () => {
                 </div>
               </div>
 
-              <div className="flex items-center md:flex-col gap-3 md:gap-2 z-10 bg-white px-4 md:px-0 md:w-1/4 text-left md:text-center">
+              {/* Step 2: Dispatched */}
+              <div className="flex items-center md:flex-col gap-3 md:gap-2 z-10 bg-white px-2 md:px-0 md:w-1/5 text-left md:text-center">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs border ${
-                  ["shipped", "delivered"].includes(order.status)
-                    ? "bg-[#B88E2F] border-[#B88E2F] text-white"
+                  ["dispatched", "shipped", "out_for_delivery", "delivered"].includes(order.status)
+                    ? "bg-[#B88E2F] border-[#B88E2F] text-white shadow-sm"
                     : "bg-gray-100 border-gray-300 text-gray-500"
                 }`}>
                   2
+                </div>
+                <div>
+                  <p className="font-bold text-gray-800 text-xs mb-0">Dispatched</p>
+                  <p className="text-[10px] text-gray-400 mb-0">Packed at warehouse</p>
+                </div>
+              </div>
+
+              {/* Step 3: Shipped */}
+              <div className="flex items-center md:flex-col gap-3 md:gap-2 z-10 bg-white px-2 md:px-0 md:w-1/5 text-left md:text-center">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs border ${
+                  ["shipped", "out_for_delivery", "delivered"].includes(order.status)
+                    ? "bg-[#B88E2F] border-[#B88E2F] text-white shadow-sm"
+                    : "bg-gray-100 border-gray-300 text-gray-500"
+                }`}>
+                  3
                 </div>
                 <div>
                   <p className="font-bold text-gray-800 text-xs mb-0">Shipped</p>
@@ -288,13 +333,14 @@ const OrderDetail = () => {
                 </div>
               </div>
 
-              <div className="flex items-center md:flex-col gap-3 md:gap-2 z-10 bg-white px-4 md:px-0 md:w-1/4 text-left md:text-center">
+              {/* Step 4: Out for Delivery */}
+              <div className="flex items-center md:flex-col gap-3 md:gap-2 z-10 bg-white px-2 md:px-0 md:w-1/5 text-left md:text-center">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs border ${
-                  ["delivered"].includes(order.status)
-                    ? "bg-[#B88E2F] border-[#B88E2F] text-white"
+                  ["out_for_delivery", "delivered"].includes(order.status)
+                    ? "bg-[#B88E2F] border-[#B88E2F] text-white shadow-sm"
                     : "bg-gray-100 border-gray-300 text-gray-500"
                 }`}>
-                  3
+                  4
                 </div>
                 <div>
                   <p className="font-bold text-gray-800 text-xs mb-0">Out for Delivery</p>
@@ -302,13 +348,14 @@ const OrderDetail = () => {
                 </div>
               </div>
 
-              <div className="flex items-center md:flex-col gap-3 md:gap-2 z-10 bg-white pl-4 md:pl-0 md:w-1/4 text-left md:text-center">
+              {/* Step 5: Delivered */}
+              <div className="flex items-center md:flex-col gap-3 md:gap-2 z-10 bg-white pl-2 md:pl-0 md:w-1/5 text-left md:text-center">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs border ${
                   order.status === "delivered"
-                    ? "bg-green-500 border-green-500 text-white"
+                    ? "bg-green-500 border-green-500 text-white shadow-sm"
                     : "bg-gray-100 border-gray-300 text-gray-500"
                 }`}>
-                  4
+                  5
                 </div>
                 <div>
                   <p className="font-bold text-gray-800 text-xs mb-0">Delivered</p>
@@ -316,6 +363,12 @@ const OrderDetail = () => {
                 </div>
               </div>
             </div>
+
+            {order.deliveryNotes && (
+              <div className="mt-4 pt-3 border-t border-gray-100 text-xs text-gray-600">
+                <strong>Delivery Note:</strong> {order.deliveryNotes}
+              </div>
+            )}
           </div>
         )}
 
@@ -326,32 +379,73 @@ const OrderDetail = () => {
               <AlertTriangle className="w-4 h-4 text-orange-500" /> Order Cancelled
             </span>
             <p className="text-sm mt-1">
-              Refund is initiated from our side to your original payment source.
+              This order has been cancelled and refund has been initiated to your original payment source.
             </p>
-            {payment?.refundId && (
+            {(order.refundId || payment?.refundId) && (
               <div className="mt-2 pt-2 border-t border-orange-200/50 text-xs text-orange-700 space-y-1">
                 <p><strong>Refund Status:</strong> Processed / Initiated</p>
-                <p><strong>Refund ID:</strong> <span className="font-mono">{payment.refundId}</span></p>
-                <p><strong>Refund Amount:</strong> {formatPrice(payment.refundAmount || order.totalAmount)}</p>
+                <p><strong>Refund ID:</strong> <span className="font-mono">{order.refundId || payment?.refundId}</span></p>
+                <p><strong>Refund Amount:</strong> {formatPrice(order.refundAmount || payment?.refundAmount || order.totalAmount)}</p>
               </div>
             )}
             {order.cancellationReason && (
-              <p className="text-xs italic text-orange-650 mt-2">
+              <p className="text-xs italic text-orange-700 mt-2">
                 Reason: "{order.cancellationReason}"
               </p>
             )}
           </div>
         )}
 
+        {/* Refunded notice */}
+        {order.status === "refunded" && (
+          <div className="bg-emerald-50 border-l-4 border-emerald-500 text-emerald-950 p-4 mb-6 rounded-lg shadow-sm">
+            <span className="font-semibold block text-sm flex items-center gap-1">
+              <CheckCircle className="w-4 h-4 text-emerald-500" /> Refund Processed
+            </span>
+            <p className="text-sm mt-1">
+              A full refund of <strong>{formatPrice(order.refundAmount || order.totalAmount)}</strong> has been processed to your original payment account.
+            </p>
+            {(order.refundId || payment?.refundId) && (
+              <p className="text-xs text-emerald-800 mt-1 font-mono">
+                Refund Ref ID: {order.refundId || payment?.refundId}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Replaced notice */}
+        {order.status === "replaced" && (
+          <div className="bg-teal-50 border-l-4 border-teal-500 text-teal-950 p-4 mb-6 rounded-lg shadow-sm">
+            <span className="font-semibold block text-sm flex items-center gap-1">
+              <RefreshCw className="w-4 h-4 text-teal-500" /> Replacement Fulfilled
+            </span>
+            <p className="text-sm mt-1">
+              Your replacement request has been completed and dispatched.
+            </p>
+          </div>
+        )}
+
+        {/* Returned notice */}
+        {order.status === "returned" && (
+          <div className="bg-rose-50 border-l-4 border-rose-500 text-rose-950 p-4 mb-6 rounded-lg shadow-sm">
+            <span className="font-semibold block text-sm flex items-center gap-1">
+              <Package className="w-4 h-4 text-rose-500" /> Order Returned
+            </span>
+            <p className="text-sm mt-1">
+              The returned items have been received at our warehouse and verified.
+            </p>
+          </div>
+        )}
+
         {order.status === "return_requested" && order.returnReason && (
-          <div className="bg-purple-50 border-l-4 border-purple-400 text-purple-700 p-4 mb-6 rounded">
-            <span className="font-semibold block text-sm">Return Reason:</span>
+          <div className="bg-purple-50 border-l-4 border-purple-400 text-purple-700 p-4 mb-6 rounded-lg shadow-sm">
+            <span className="font-semibold block text-sm">Return Request Under Review:</span>
             <p className="text-sm italic mt-1">"{order.returnReason}"</p>
           </div>
         )}
         {order.status === "exchange_requested" && order.exchangeReason && (
-          <div className="bg-pink-50 border-l-4 border-pink-400 text-pink-700 p-4 mb-6 rounded">
-            <span className="font-semibold block text-sm">Exchange Reason:</span>
+          <div className="bg-pink-50 border-l-4 border-pink-400 text-pink-700 p-4 mb-6 rounded-lg shadow-sm">
+            <span className="font-semibold block text-sm">Replace / Exchange Request Under Review:</span>
             <p className="text-sm italic mt-1">"{order.exchangeReason}"</p>
           </div>
         )}
@@ -519,14 +613,14 @@ const OrderDetail = () => {
                     setReason("");
                     setActionMessage("");
                   }}
-                  className="px-4 py-2 border border-gray-300 rounded font-semibold text-gray-700 hover:bg-gray-50 transition"
+                  className="px-5 py-2 border border-gray-300 rounded-full font-semibold text-gray-700 hover:bg-gray-50 transition"
                   disabled={submittingAction}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded font-semibold transition disabled:opacity-50"
+                  className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-full font-semibold transition shadow-sm disabled:opacity-50"
                   disabled={submittingAction}
                 >
                   {submittingAction ? "Submitting..." : `Confirm ${activeModal.charAt(0).toUpperCase() + activeModal.slice(1)}`}

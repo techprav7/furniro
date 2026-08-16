@@ -43,9 +43,9 @@ const Products = () => {
         <h3 className="text-xl font-bold text-gray-900 leading-snug">Go to Product Page for more details</h3>
         <button 
           onClick={() => navigate('/shop')}
-          className='text-left text-gray-500 underline cursor-pointer hover:text-black transition-colors duration-300 font-medium'
+          className='text-left text-[#B88E2F] hover:text-[#906c20] cursor-pointer transition-colors duration-300 font-semibold inline-flex items-center gap-1'
         >
-          View More Products
+          View More Products &rarr;
         </button>
       </div>
 
@@ -53,7 +53,7 @@ const Products = () => {
         {items.map((item) => (
           <div 
             key={item._id}
-            className="card flex flex-col justify-between cursor-pointer border border-gray-200 bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-all duration-300 w-full md:w-[240px] relative group"
+            className="card flex flex-col justify-between cursor-pointer border border-gray-200 bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-300 w-full md:w-[240px] relative group"
             onClick={() => navigate(`/product/${item._id}`)}
           >
             {/* Remove from comparison */}
@@ -69,7 +69,7 @@ const Products = () => {
             </button>
 
             <div>
-              <div className="h-[150px] flex items-center justify-center bg-gray-50 rounded mb-3 p-2">
+              <div className="h-[150px] flex items-center justify-center bg-gray-50 rounded-lg mb-3 p-2">
                 <img src={item.image} className='max-h-full max-w-full object-contain' alt={item.name} />
               </div>
               <h4 className="font-bold text-[#3A3A3A] text-lg mb-1 truncate">{item.name}</h4>
@@ -89,14 +89,14 @@ const Products = () => {
       </div>
 
       {items.length < 3 && (
-        <div className="choose flex flex-col gap-2 p-4 border border-dashed border-gray-300 rounded-lg w-full lg:w-[240px] bg-gray-50">
+        <div className="choose flex flex-col gap-2 p-4 border border-dashed border-gray-300 rounded-xl w-full lg:w-[240px] bg-gray-50">
           <h3 className="text-lg font-bold text-gray-800">Add a product</h3>
           <p className="text-xs text-gray-500 mb-2">Compare up to 3 products</p>
           <div className="relative">
             <select
               onChange={handleSelectProduct}
               value=""
-              className="w-full bg-[#B88E2F] hover:bg-[#a0781d] text-white font-bold rounded cursor-pointer p-2.5 outline-none transition-all duration-300 appearance-none pr-8 text-sm"
+              className="w-full bg-[#B88E2F] hover:bg-[#a0781d] text-white font-bold rounded-full cursor-pointer p-2.5 px-4 outline-none transition-all duration-300 appearance-none pr-8 text-sm shadow-sm"
             >
               <option value="" disabled>Choose a product</option>
               {availableToCompare.map((ap) => (

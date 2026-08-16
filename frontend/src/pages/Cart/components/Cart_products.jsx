@@ -17,7 +17,7 @@ const Cart_products = () => {
           <p className="text-gray-500 mb-6">Looks like you haven't added any products to your cart yet.</p>
           <Link
             to="/shop"
-            className="inline-block bg-[#B88E2F] text-white px-8 py-3 rounded font-semibold hover:bg-[#a5761f] transition"
+            className="inline-block bg-[#B88E2F] text-white px-8 py-3 rounded-full font-semibold hover:bg-[#a5761f] transition shadow-sm"
           >
             Go to Shop
           </Link>
@@ -77,7 +77,7 @@ const Cart_products = () => {
                     {formatPrice(item.price)}
                   </li>
                   <li className="text-center flex-1 min-w-[100px] flex justify-center items-center">
-                    <div className="flex items-center gap-2 border border-gray-300 rounded px-2 py-1 bg-white">
+                    <div className="flex items-center gap-2 border border-gray-300 rounded-full px-3 py-1 bg-white">
                       <button 
                         onClick={() => updateQuantity(item._id, item.quantity - 1)}
                         className="font-bold text-gray-600 hover:text-black px-1"
@@ -113,7 +113,7 @@ const Cart_products = () => {
         </div>
 
         {/* Right Panel - Cart Total */}
-        <div className="bg-[#faf3ea] flex flex-col items-center p-6 w-full lg:w-[30%] rounded-lg shadow-sm border border-gray-250/50 h-fit">
+        <div className="bg-[#faf3ea] flex flex-col items-center p-6 w-full lg:w-[30%] rounded-2xl shadow-sm border border-gray-250/50 h-fit">
           <h2 className="text-2xl font-bold text-gray-800 mb-6 border-b border-gray-200 pb-2 w-full text-center">Cart Totals</h2>
           
           <div className="flex w-full justify-between mb-4 border-b border-gray-200 pb-3 text-sm sm:text-base">
@@ -149,7 +149,7 @@ const Cart_products = () => {
           <button 
             onClick={() => navigate('/checkout')}
             disabled={items.some(item => item.stock !== undefined && (item.stock <= 0 || item.quantity > item.stock))}
-            className={`w-full py-3 text-white font-bold rounded shadow transition duration-300 ${
+            className={`w-full py-3.5 text-white font-bold rounded-full shadow-md transition duration-300 ${
               items.some(item => item.stock !== undefined && (item.stock <= 0 || item.quantity > item.stock))
                 ? "bg-gray-400 cursor-not-allowed opacity-65"
                 : "bg-[#B88E2F] hover:bg-[#a5761f]"

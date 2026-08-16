@@ -24,7 +24,6 @@ function Footer() {
               <li className="mb-1 sm:mb-4 font-semibold text-gray-400 text-xs sm:text-sm">Links</li>
               <li className="mb-1 sm:mb-2 font-semibold"><Link to="/" className="text-black no-underline hover:text-[#B88E2F] transition-colors">Home</Link></li>
               <li className="mb-1 sm:mb-2 font-semibold"><Link to="/shop" className="text-black no-underline hover:text-[#B88E2F] transition-colors">Shop</Link></li>
-              <li className="mb-1 sm:mb-2 font-semibold"><Link to="/blog" className="text-black no-underline hover:text-[#B88E2F] transition-colors">Blog</Link></li>
               <li className="font-semibold"><Link to="/contact" className="text-black no-underline hover:text-[#B88E2F] transition-colors">Contact</Link></li>
             </ul>
           </div>

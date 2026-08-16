@@ -151,10 +151,6 @@ The app uses a **Layout wrapper pattern** with React Router's `<Outlet>`:
 - Billing form
 - Order summary
 
-### 📝 Blog (`/blog`)
-- Blog posts about furniture and design
-- Categories and search
-
 ### 📞 Contact (`/contact`)
 - Contact form (Name, Email, Subject, Message)
 - Submissions stored in MongoDB

@@ -53,8 +53,40 @@ const orderSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "paid", "failed", "shipped", "delivered", "cancelled", "return_requested", "exchange_requested"],
+      enum: [
+        "pending",
+        "paid",
+        "failed",
+        "dispatched",
+        "shipped",
+        "out_for_delivery",
+        "delivered",
+        "cancelled",
+        "return_requested",
+        "returned",
+        "exchange_requested",
+        "replaced",
+        "refunded"
+      ],
       default: "pending"
+    },
+    trackingNumber: {
+      type: String,
+      trim: true
+    },
+    courierPartner: {
+      type: String,
+      trim: true
+    },
+    deliveryNotes: {
+      type: String,
+      trim: true
+    },
+    refundAmount: {
+      type: Number
+    },
+    refundId: {
+      type: String
     },
     cancellationReason: {
       type: String,

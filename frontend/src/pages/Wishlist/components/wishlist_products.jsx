@@ -82,7 +82,7 @@ const Wishlist_products = () => {
                 <li className="text-center flex-1 min-w-[120px]">
                   <button 
                     onClick={() => handleMoveToCart(item)}
-                    className="py-2 px-4 border border-[#B88E2F] text-[#B88E2F] font-semibold hover:bg-[#B88E2F] hover:text-white transition duration-300 rounded"
+                    className="py-2 px-5 border border-[#B88E2F] text-[#B88E2F] font-semibold hover:bg-[#B88E2F] hover:text-white transition duration-300 rounded-full shadow-sm"
                   >
                     Move to Cart
                   </button>

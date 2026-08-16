@@ -557,7 +557,7 @@ const Bill = () => {
           <button 
             onClick={handlePlaceOrder}
             disabled={items.some(item => item.stock !== undefined && (item.stock <= 0 || item.quantity > item.stock))}
-            className={`w-full py-3 text-white font-bold rounded shadow transition duration-300 mt-4 ${
+            className={`w-full py-3.5 text-white font-bold rounded-full shadow-md transition duration-300 mt-4 ${
               items.some(item => item.stock !== undefined && (item.stock <= 0 || item.quantity > item.stock))
                 ? "bg-gray-400 cursor-not-allowed opacity-65"
                 : "bg-[#B88E2F] hover:bg-[#a5761f]"
