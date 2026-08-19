@@ -12,6 +12,9 @@ dotenv.config();
 
 const app = express();
 
+// --- Trust Proxy (Required when behind reverse proxies like Render/Cloudflare/Vercel) ---
+app.set("trust proxy", 1);
+
 // --- Security Middleware ---
 
 // HTTP security headers
