@@ -64,7 +64,7 @@ const Comparison = () => {
       title: "Warranty",
       rows: [
         { label: "Warranty Period", value: (p) => p.name.includes("Asgaard") ? "1 Year Domestic" : "2 Years Domestic" },
-        { label: "Warranty Service", value: (p) => "Email support@furniro.com for claim requests" },
+        { label: "Warranty Service", value: (p) => "Email tech.prav7@gmail.com for claim requests" },
         { label: "Covered in Warranty", value: (p) => "Manufacturing Defect" },
         { label: "Not Covered", value: (p) => "Wear and Tear, Water Damage, Misuse" },
         { label: "Domestic Warranty", value: (p) => "1 Year Parts & Labor" },

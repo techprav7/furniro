@@ -9,7 +9,7 @@ const settingSchema = new mongoose.Schema(
     },
     storeEmail: {
       type: String,
-      default: "support@furniro.com",
+      default: "tech.prav7@gmail.com",
       trim: true,
     },
     storePhone: {

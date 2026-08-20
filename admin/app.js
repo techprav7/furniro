@@ -213,7 +213,7 @@ const startAdmin = async () => {
     if (!existingSetting) {
       await Setting.create({
         storeName: "Furniro",
-        storeEmail: "support@furniro.com",
+        storeEmail: "tech.prav7@gmail.com",
         storePhone: "+91 98765 43210",
         currencyCode: "INR",
         currencySymbol: "₹",

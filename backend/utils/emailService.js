@@ -14,7 +14,7 @@ const getResendInstance = () => {
  * Sends an email using the Resend API
  */
 const sendRawEmail = async ({ to, subject, html, orderId, status }) => {
-  const fromEmail = process.env.RESEND_FROM_EMAIL || "Furniro <onboarding@resend.dev>";
+  const fromEmail = process.env.RESEND_FROM_EMAIL || "Furniro <orders@praver.space>";
   const resend = getResendInstance();
 
   if (resend) {
@@ -103,7 +103,7 @@ const getDeliveryRangeString = (orderDate, startDays = 5, endDays = 7) => {
  * Shared base HTML template generator for Furniro emails
  */
 const buildFurniroEmailHtml = ({ title, badgeText, badgeColor = "#B88E2F", introTitle, introBody, highlightBoxHtml = "", order, extraSectionsHtml = "" }) => {
-  const supportEmail = process.env.SUPPORT_EMAIL || "support@furniro.com";
+  const supportEmail = process.env.SUPPORT_EMAIL || "tech.prav7@gmail.com";
   const recipientName = order.shippingAddress ? `${order.shippingAddress.firstName || ""} ${order.shippingAddress.lastName || ""}`.trim() : "Valued Customer";
 
   // Build items summary rows
@@ -566,11 +566,145 @@ const sendOrderStatusNotification = async (order, previousStatus = null) => {
   }
 };
 
+/**
+ * Sends a welcome email when a user creates an account
+ */
+const sendWelcomeEmail = async ({ email, name }) => {
+  try {
+    if (!email) return;
+
+    const recipientName = name || "Valued Customer";
+    const frontendUrl = process.env.FRONTEND_URL || "https://www.praver.space";
+    const supportEmail = process.env.SUPPORT_EMAIL || "tech.prav7@gmail.com";
+
+    const subject = `Welcome to Furniro, ${recipientName}! ✨`;
+    const emailHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Welcome to Furniro</title>
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #faf8f6; color: #333; margin: 0; padding: 20px 0;">
+        <table border="0" cellpadding="0" cellspacing="0" width="100%">
+          <tr>
+            <td align="center">
+              <table border="0" cellpadding="0" cellspacing="0" width="600" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); overflow: hidden; border: 1px solid #eae5df;">
+                <tr>
+                  <td style="background-color: #FAF3EA; padding: 32px 40px; text-align: center; border-bottom: 3px solid #B88E2F;">
+                    <h1 style="font-size: 30px; margin: 0; color: #333333; font-weight: 700; letter-spacing: 1px;">Furniro</h1>
+                    <p style="font-size: 12px; margin: 6px 0 0 0; color: #B88E2F; text-transform: uppercase; font-weight: 700; letter-spacing: 2px;">Luxury Furniture & Living</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 32px 40px;">
+                    <h2 style="font-size: 22px; color: #1a202c; margin-top: 0;">Welcome to the Furniro Family, ${recipientName}! 🎉</h2>
+                    <p style="font-size: 15px; color: #4a5568; line-height: 1.6;">We're thrilled to have you with us. Your Furniro account has been successfully created.</p>
+                    <p style="font-size: 15px; color: #4a5568; line-height: 1.6;">Explore our curated collection of artisan furniture, handcrafted tables, luxury sofas, and premium interior decor crafted for modern homes.</p>
+                    
+                    <div style="text-align: center; margin: 30px 0;">
+                      <a href="${frontendUrl}/shop" style="background-color: #B88E2F; color: #ffffff; padding: 14px 28px; border-radius: 4px; text-decoration: none; font-weight: 600; font-size: 15px; display: inline-block;">Explore Collection</a>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="background-color: #333333; color: #ffffff; padding: 24px 40px; text-align: center;">
+                    <p style="font-size: 13px; margin: 0 0 8px 0;">Questions? Reach out to us at <a href="mailto:${supportEmail}" style="color: #FAF3EA; text-decoration: underline;">${supportEmail}</a></p>
+                    <p style="font-size: 11px; color: #a0aec0; margin: 0;">&copy; 2026 Furniro. Luxury Furniture & Living.</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `;
+
+    await sendRawEmail({
+      to: email,
+      subject,
+      html: emailHtml,
+      orderId: "WELCOME",
+      status: "welcome",
+    });
+  } catch (err) {
+    console.error("❌ Failed to send welcome email:", err);
+  }
+};
+
+/**
+ * Sends an email notification when a user account is deleted
+ */
+const sendAccountDeletionEmail = async ({ email, name }) => {
+  try {
+    if (!email) return;
+
+    const recipientName = name || "Customer";
+    const supportEmail = process.env.SUPPORT_EMAIL || "tech.prav7@gmail.com";
+
+    const subject = `Your Furniro Account Has Been Deleted`;
+    const emailHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Account Deleted</title>
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #faf8f6; color: #333; margin: 0; padding: 20px 0;">
+        <table border="0" cellpadding="0" cellspacing="0" width="100%">
+          <tr>
+            <td align="center">
+              <table border="0" cellpadding="0" cellspacing="0" width="600" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); overflow: hidden; border: 1px solid #eae5df;">
+                <tr>
+                  <td style="background-color: #FAF3EA; padding: 28px 40px; text-align: center; border-bottom: 3px solid #e74c3c;">
+                    <h1 style="font-size: 28px; margin: 0; color: #333333; font-weight: 700; letter-spacing: 1px;">Furniro</h1>
+                    <p style="font-size: 12px; margin: 6px 0 0 0; color: #e74c3c; text-transform: uppercase; font-weight: 700; letter-spacing: 2px;">Account Notice</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 32px 40px;">
+                    <h2 style="font-size: 20px; color: #1a202c; margin-top: 0;">Account Deletion Confirmation</h2>
+                    <p style="font-size: 15px; color: #4a5568; line-height: 1.6;">Hello ${recipientName},</p>
+                    <p style="font-size: 15px; color: #4a5568; line-height: 1.6;">This email confirms that your Furniro user account associated with <strong>${email}</strong> has been successfully deleted.</p>
+                    <p style="font-size: 15px; color: #4a5568; line-height: 1.6;">We're sorry to see you go! If this action was not initiated by you or if you change your mind, you can create a new account anytime or contact our support team.</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="background-color: #333333; color: #ffffff; padding: 24px 40px; text-align: center;">
+                    <p style="font-size: 13px; margin: 0 0 8px 0;">Need help? Contact us at <a href="mailto:${supportEmail}" style="color: #FAF3EA; text-decoration: underline;">${supportEmail}</a></p>
+                    <p style="font-size: 11px; color: #a0aec0; margin: 0;">&copy; 2026 Furniro. Luxury Furniture & Living.</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `;
+
+    await sendRawEmail({
+      to: email,
+      subject,
+      html: emailHtml,
+      orderId: "ACCOUNT_DELETED",
+      status: "account_deleted",
+    });
+  } catch (err) {
+    console.error("❌ Failed to send account deletion email:", err);
+  }
+};
+
 // Aliases for backward compatibility
 const sendOrderConfirmationEmail = (order) => sendOrderStatusNotification(order);
 
 module.exports = {
   sendOrderStatusNotification,
   sendOrderConfirmationEmail,
+  sendWelcomeEmail,
+  sendAccountDeletionEmail,
   sendRawEmail,
 };

@@ -64,10 +64,22 @@ exports.handleClerkWebhook = async (req, res) => {
       );
       
       console.log(`✅ Synced user in MongoDB: ${updatedUser.name} (${updatedUser.email})`);
+
+      // Trigger welcome email asynchronously ONLY when a new user account is created
+      if (eventType === "user.created" && email) {
+        const { sendWelcomeEmail } = require("../utils/emailService");
+        sendWelcomeEmail({ email, name }).catch((err) => console.error("❌ Failed to send welcome email:", err));
+      }
     } else if (eventType === "user.deleted") {
       const deletedUser = await User.findOneAndDelete({ clerkId: id });
       if (deletedUser) {
         console.log(`✅ Deleted user from MongoDB: ${deletedUser.name}`);
+
+        // Trigger account deletion confirmation email asynchronously
+        if (deletedUser.email) {
+          const { sendAccountDeletionEmail } = require("../utils/emailService");
+          sendAccountDeletionEmail({ email: deletedUser.email, name: deletedUser.name }).catch((err) => console.error("❌ Failed to send account deletion email:", err));
+        }
       } else {
         console.log(`ℹ️ User with ID ${id} was not found in MongoDB`);
       }
