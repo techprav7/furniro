@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams, Link } from "react-router-dom";
-import { UserProfile, useAuth } from "@clerk/clerk-react";
+import { UserProfile, useAuth, useUser } from "@clerk/clerk-react";
 import { User, MapPin, CreditCard, Save, RefreshCw, ChevronRight, CheckCircle, Info } from "lucide-react";
 import Location from "../../components/Location";
 import api from "../../utils/api";
@@ -9,8 +9,14 @@ import Loader from "../../components/Loader";
 
 const Profile = () => {
   const { getToken } = useAuth();
+  const { user } = useUser();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") || "account";
+
+  const clerkEmail = user?.primaryEmailAddress?.emailAddress || "";
+  const clerkFirstName = user?.firstName || "";
+  const clerkLastName = user?.lastName || "";
+  const clerkPhone = user?.primaryPhoneNumber?.phoneNumber || "";
 
   // Address state
   const [shippingForm, setShippingForm] = useState({
@@ -71,10 +77,33 @@ const Profile = () => {
         if (profileRes && profileRes.success && profileRes.user) {
           const u = profileRes.user;
           if (u.defaultAddress) {
-            setShippingForm((prev) => ({ ...prev, ...u.defaultAddress }));
+            setShippingForm((prev) => ({
+              ...prev,
+              ...u.defaultAddress,
+              firstName: clerkFirstName || u.defaultAddress.firstName || prev.firstName || "",
+              lastName: clerkLastName || u.defaultAddress.lastName || prev.lastName || "",
+              email: clerkEmail || u.defaultAddress.email || prev.email || "",
+              phone: clerkPhone || u.defaultAddress.phone || prev.phone || "",
+            }));
+          } else if (user) {
+            setShippingForm((prev) => ({
+              ...prev,
+              firstName: clerkFirstName || prev.firstName || "",
+              lastName: clerkLastName || prev.lastName || "",
+              email: clerkEmail || prev.email || "",
+              phone: clerkPhone || prev.phone || "",
+            }));
           }
+
           if (u.defaultBillingAddress) {
-            setBillingForm((prev) => ({ ...prev, ...u.defaultBillingAddress }));
+            setBillingForm((prev) => ({
+              ...prev,
+              ...u.defaultBillingAddress,
+              firstName: clerkFirstName || u.defaultBillingAddress.firstName || prev.firstName || "",
+              lastName: clerkLastName || u.defaultBillingAddress.lastName || prev.lastName || "",
+              email: clerkEmail || u.defaultBillingAddress.email || prev.email || "",
+              phone: clerkPhone || u.defaultBillingAddress.phone || prev.phone || "",
+            }));
             
             // Check if billing matches shipping to toggle sameAddress checkbox
             const billingEmpty = !u.defaultBillingAddress.streetAddress;
@@ -92,7 +121,7 @@ const Profile = () => {
     if (activeTab === "address") {
       fetchProfileData();
     }
-  }, [activeTab, getToken]);
+  }, [activeTab, getToken, user]);
 
   useEffect(() => {
     const fetchPaymentsData = async () => {

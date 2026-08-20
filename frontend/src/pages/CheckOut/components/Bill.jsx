@@ -48,6 +48,11 @@ const Bill = () => {
   // Pre-fill user data when Clerk loads or from database profile
   useEffect(() => {
     const loadProfile = async () => {
+      const clerkEmail = user?.primaryEmailAddress?.emailAddress || "";
+      const clerkFirstName = user?.firstName || "";
+      const clerkLastName = user?.lastName || "";
+      const clerkPhone = user?.primaryPhoneNumber?.phoneNumber || "";
+
       try {
         const token = await getToken();
         if (token) {
@@ -56,19 +61,21 @@ const Bill = () => {
           });
           if (profileRes && profileRes.success && profileRes.user) {
             const addr = profileRes.user.defaultAddress || {};
-            if (addr.streetAddress || addr.townCity || addr.phone) {
-              setForm({
-                firstName: addr.firstName || "",
-                lastName: addr.lastName || "",
-                phone: addr.phone || "",
-                companyName: addr.companyName || "",
-                country: addr.country || "India",
-                streetAddress: addr.streetAddress || "",
-                townCity: addr.townCity || "",
-                province: addr.province || "",
-                zipCode: addr.zipCode || "",
-                email: addr.email || "",
-              });
+            if (addr.streetAddress || addr.townCity || addr.phone || addr.zipCode) {
+              setForm((prev) => ({
+                ...prev,
+                firstName: clerkFirstName || addr.firstName || prev.firstName || "",
+                lastName: clerkLastName || addr.lastName || prev.lastName || "",
+                phone: clerkPhone || addr.phone || prev.phone || "",
+                companyName: addr.companyName || prev.companyName || "",
+                country: addr.country || prev.country || "India",
+                streetAddress: addr.streetAddress || prev.streetAddress || "",
+                townCity: addr.townCity || prev.townCity || "",
+                province: addr.province || prev.province || "",
+                zipCode: addr.zipCode || prev.zipCode || "",
+                // Always prioritize the authenticated Clerk user's email
+                email: clerkEmail || addr.email || prev.email || "",
+              }));
               return;
             }
           }
@@ -80,10 +87,10 @@ const Bill = () => {
       if (user) {
         setForm((prev) => ({
           ...prev,
-          firstName: prev.firstName || user.firstName || "",
-          lastName: prev.lastName || user.lastName || "",
-          email: prev.email || user.primaryEmailAddress?.emailAddress || "",
-          phone: prev.phone || user.primaryPhoneNumber?.phoneNumber || "",
+          firstName: clerkFirstName || prev.firstName || "",
+          lastName: clerkLastName || prev.lastName || "",
+          email: clerkEmail || prev.email || "",
+          phone: clerkPhone || prev.phone || "",
         }));
       }
     };
@@ -252,9 +259,9 @@ const Bill = () => {
           }
         },
         prefill: {
-          name: `${form.firstName} ${form.lastName}`,
-          email: form.email,
-          contact: form.phone
+          name: `${form.firstName} ${form.lastName}`.trim() || user?.fullName || "Valued Customer",
+          email: user?.primaryEmailAddress?.emailAddress || form.email,
+          contact: user?.primaryPhoneNumber?.phoneNumber || form.phone
         },
         theme: {
           color: "#B88E2F"

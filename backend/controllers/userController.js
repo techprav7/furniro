@@ -4,8 +4,12 @@ const User = require("../models/User");
 exports.getUserProfile = async (req, res) => {
   try {
     let clerkUserId = req.auth?.userId;
+    if (!clerkUserId && process.env.NODE_ENV !== "production" && req.query.mockUserId) {
+      clerkUserId = req.query.mockUserId;
+    }
+
     if (!clerkUserId) {
-      clerkUserId = req.query.mockUserId || "mock_clerk_user_id";
+      return res.status(401).json({ success: false, message: "Unauthorized: User session required" });
     }
 
     let user = await User.findOne({ clerkId: clerkUserId });
@@ -15,7 +19,7 @@ exports.getUserProfile = async (req, res) => {
         { clerkId: clerkUserId },
         {
           clerkId: clerkUserId,
-          email: "user@example.com",
+          email: req.auth?.claims?.email || "user@example.com",
           name: "Clerk User",
         },
         { upsert: true, new: true }
@@ -33,8 +37,12 @@ exports.getUserProfile = async (req, res) => {
 exports.updateUserProfileAddress = async (req, res) => {
   try {
     let clerkUserId = req.auth?.userId;
+    if (!clerkUserId && process.env.NODE_ENV !== "production" && req.query.mockUserId) {
+      clerkUserId = req.query.mockUserId;
+    }
+
     if (!clerkUserId) {
-      clerkUserId = req.query.mockUserId || "mock_clerk_user_id";
+      return res.status(401).json({ success: false, message: "Unauthorized: User session required" });
     }
 
     const { defaultAddress, defaultBillingAddress } = req.body;
@@ -43,7 +51,7 @@ exports.updateUserProfileAddress = async (req, res) => {
     if (!user) {
       user = new User({
         clerkId: clerkUserId,
-        email: "user@example.com",
+        email: req.auth?.claims?.email || "user@example.com",
         name: "Clerk User",
       });
     }
